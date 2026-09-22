@@ -433,11 +433,14 @@
   let currentMember = null;
   let html5QrCode = null;
   let isScannerRunning = false;
-  // 定義圖片網址常數
+  
+  // 定義圖片網址常數 (包含 Q4 拜託的小貓咪)
   const IMG_Q1 = 'https://xevxgbfamlrrylqkewlw.supabase.co/storage/v1/object/public/labulabu/q1.png'; // 提醒/確認
   const IMG_Q2 = 'https://xevxgbfamlrrylqkewlw.supabase.co/storage/v1/object/public/labulabu/q2.png'; // 成功
   const IMG_Q3 = 'https://xevxgbfamlrrylqkewlw.supabase.co/storage/v1/object/public/labulabu/q3.png'; // 失敗
-  // 自定義漂亮提示框取代 alert (支援動態帶入 imgType: 'q1', 'q2', 'q3')
+  const IMG_Q4 = 'https://xevxgbfamlrrylqkewlw.supabase.co/storage/v1/object/public/labulabu/q4.png'; // 拜託的小貓咪 (處理中)
+
+  // 💡 升級版：直接更新同一個 Modal 內容，解決閃爍與一閃而過問題
   function showModalAlert(message, title = '系統提示', imgType = 'q1') {
     document.getElementById('customAlertTitle').innerText = title;
     document.getElementById('customAlertMessage').innerText = message;
@@ -445,12 +448,39 @@
     let imgUrl = IMG_Q1;
     if (imgType === 'q2') imgUrl = IMG_Q2;
     else if (imgType === 'q3') imgUrl = IMG_Q3;
+    else if (imgType === 'q4') imgUrl = IMG_Q4;
     
     document.getElementById('customAlertImg').src = imgUrl;
-    let myModal = new bootstrap.Modal(document.getElementById('customAlertModal'));
-    myModal.show();
+    
+    // 確保確定按鈕顯示
+    let modalEl = document.getElementById('customAlertModal');
+    let okBtn = modalEl.querySelector('button[data-bs-dismiss="modal"]');
+    if (okBtn) okBtn.style.display = 'block';
+
+    // 若 Modal 尚未開啟則打開它，若已經開著（從 Loading 轉過來）則直接刷新內容不閃爍
+    let myModal = bootstrap.Modal.getInstance(modalEl);
+    if (!myModal) {
+      myModal = new bootstrap.Modal(modalEl);
+      myModal.show();
+    }
   }
-  // 自定義漂亮確認框取代 confirm
+
+  // 顯示帶有小貓咪的 Loading 彈窗
+  function showLoadingModal(message = '小貓咪正在努力處理中，請稍候...') {
+    showModalAlert(message, '處理中', 'q4');
+    
+    // 隱藏確定按鈕（避免使用者在處理中亂按）
+    let modalEl = document.getElementById('customAlertModal');
+    let okBtn = modalEl.querySelector('button[data-bs-dismiss="modal"]');
+    if (okBtn) okBtn.style.display = 'none';
+  }
+
+  // 關閉 Loading 彈窗（交由 showModalAlert 直接覆蓋內容即可）
+  function hideLoadingModal() {
+    // 保留空函數避免報錯
+  }
+
+  // 確認框
   function showModalConfirm(message, onConfirm, title = '確認操作') {
     document.getElementById('customConfirmTitle').innerText = title;
     document.getElementById('customConfirmMessage').innerText = message;
@@ -468,6 +498,7 @@
     
     myModal.show();
   }
+
   async function callApi(endpoint, method = 'GET', data = null) {
     const options = { method, headers: { 'Content-Type': 'application/json' } };
     if (data) options.body = JSON.stringify(data);
@@ -479,6 +510,7 @@
       return { success: false, message: '網路連線異常' };
     }
   }
+
   function sortByCode(key) {
     return function(a, b) {
       let idA = String(a[key] || '').trim();
@@ -486,6 +518,7 @@
       return idA.localeCompare(idB, 'en', { numeric: true });
     };
   }
+
   async function loadPreventionTerms() {
     let res = await callApi('/api/get-setting?key=防範漏洞條款內文');
     let termsBox = document.getElementById('termsContainer');
@@ -495,6 +528,7 @@
       termsBox.innerText = '歡迎使用拉咘幣 O2O 會員系統，請遵守各項點數使用與消費規範。';
     }
   }
+
   window.onload = function() {
     loadStoreProducts();
     loadPreventionTerms();
@@ -534,6 +568,7 @@
       }
     });
   };
+
   async function initSystemTimestamps() {
     let res = await callApi('/api/system-timestamps');
     if (res.success && res.timestamps) {
@@ -543,6 +578,7 @@
       localStorage.setItem('announcement_updated_at', res.timestamps.announcement_updated_at || '0');
     }
   }
+
   async function shareToFriends() {
     const shareData = {
       title: '拉咘幣 O2O 會員中心',
@@ -560,6 +596,7 @@
       console.log('分享取消或失敗', err);
     }
   }
+
   async function toggleQrScanner() {
     const readerDiv = document.getElementById('qr-reader');
     const resultDiv = document.getElementById('qr-reader-results');
@@ -596,6 +633,7 @@
       await stopQrScanner();
     }
   }
+
   async function stopQrScanner() {
     const btnToggle = document.getElementById('btnScanToggle');
     if (html5QrCode && isScannerRunning) {
@@ -614,15 +652,18 @@
       btnToggle.classList.add('btn-outline-dark');
     }
   }
+
   function toggleCollapse(id, header) {
     let b = document.getElementById(id), a = header.querySelector('span:last-child');
     b.style.display = b.style.display === 'none' ? 'block' : 'none';
     a.innerText = b.style.display === 'none' ? '▲' : '▼';
   }
+
   function toggleProfileForm() {
     let formContainer = document.getElementById('profileFormContainer');
     formContainer.style.display = formContainer.style.display === 'none' ? 'block' : 'none';
   }
+
   async function loadAnnouncements() {
     let annArea = document.getElementById('announcementArea');
     annArea.innerHTML = '<div class="text-muted text-center py-2">載入公告中...</div>';
@@ -645,16 +686,16 @@
       annArea.innerHTML += `<div class="p-3 border-bottom">${img}<div class="mb-1"><span class="badge text-white me-2" style="background-color: #032E5B;">${a.category || '公告'}</span><strong class="text-dark">${a.title}</strong></div><p class="small text-secondary mb-0 mt-1">${a.content}</p></div>`;
     });
   }
+
   async function loadStoreProducts() {
     let res = await callApi('/api/products');
     let rBox = document.getElementById('listRedeem'), aBox = document.getElementById('listAddon'), cBox = document.getElementById('listCatalog');
     if (!res.success || !res.products) return;
     rBox.innerHTML = ''; aBox.innerHTML = ''; cBox.innerHTML = '';
     let validProducts = res.products.filter(p => {
-let status = String(p.status || '').trim();
-  let stock = Number(p.remaining_stock) || 0;
-  // 必須是「上架」狀態，且「剩餘庫存大於 0」才會顯示在前台
-  return (status === '' || status === '上架') && stock > 0;
+      let status = String(p.status || '').trim();
+      let stock = Number(p.remaining_stock) || 0;
+      return (status === '' || status === '上架') && stock > 0;
     });
     validProducts.sort(sortByCode('product_id'));
     validProducts.forEach(p => {
@@ -668,6 +709,7 @@ let status = String(p.status || '').trim();
       }
     });
   }
+
   async function loadProfileCenterData() {
     if (!currentMember) return;
     let mRes = await callApi('/api/members');
@@ -739,6 +781,7 @@ let status = String(p.status || '').trim();
       logArea.innerHTML = '<li class="list-group-item text-center text-muted small">無點數異動紀錄</li>';
     }
   }
+
   async function saveMemberProfile() {
     if (!currentMember) return;
     if (currentMember.is_profile_updated === true) {
@@ -750,6 +793,7 @@ let status = String(p.status || '').trim();
     if (!name) return showModalAlert('姓名不得為空！', '欄位空白', 'q3');
     
     showModalConfirm('基本資料僅能修改一次，送出後即無法再次變更且按鈕將消失，確認要送出嗎？', async () => {
+      showLoadingModal('小貓咪正在為您更新基本資料...');
       let res = await callApi('/api/member/update-profile', 'POST', {
         memberId: currentMember.member_id,
         name, gender, birthdate
@@ -766,6 +810,7 @@ let status = String(p.status || '').trim();
       }
     }, '確認修改資料');
   }
+
   async function loadActivitiesData() {
     if (!currentMember) return;
     let lRes = await callApi('/api/lottery_events');
@@ -861,14 +906,23 @@ let status = String(p.status || '').trim();
       }
     }
   }
+
+  // ==========================================
+  // 💡 互動函數 (Q4 貓咪 Loading + 樂觀更新 + 防閃爍)
+  // ==========================================
+
   async function redeemVirtualCode() {
     let code = document.getElementById('inputVirtualCode').value.trim();
     if (!code) return showModalAlert('請輸入兌換序號！', '欄位空白', 'q3');
     if (!currentMember) return showModalAlert('請先登入會員！', '尚未登入', 'q3');
+    
+    showLoadingModal('小貓咪正在幫您核對序號...');
+
     let res = await callApi('/api/member/redeem-virtual-code', 'POST', {
       memberId: currentMember.member_id,
       code: code
     });
+    
     showModalAlert(res.message, res.success ? '兌換成功' : '兌換失敗', res.success ? 'q2' : 'q3');
     if (res.success) {
       document.getElementById('inputVirtualCode').value = '';
@@ -876,26 +930,47 @@ let status = String(p.status || '').trim();
         currentMember.available_coins = res.newPoints;
         document.getElementById('cardPoints').innerText = res.newPoints + ' 幣';
       }
+      loadProfileCenterData();
     }
   }
+
   async function participateLottery(eventId, costCoins, title) {
     if (currentMember.available_coins < costCoins) return showModalAlert('拉咘幣不足！', '餘額不足', 'q3');
+    
     showModalConfirm(`確定消耗 ${costCoins} 幣參與「${title}」？`, async () => {
+      showLoadingModal('小貓咪正在幫您投入抽獎券...');
+
+      let oldPoints = currentMember.available_coins;
+      currentMember.available_coins -= costCoins;
+      document.getElementById('cardPoints').innerText = currentMember.available_coins + ' 幣';
+
       let res = await callApi('/api/member/participate-lottery', 'POST', { memberId: currentMember.member_id, eventId });
-      showModalAlert(res.message, res.success ? '參與成功' : '參與失敗', res.success ? 'q2' : 'q3');
+      
       if (res.success) {
-        currentMember.available_coins = res.newPoints;
-        document.getElementById('cardPoints').innerText = res.newPoints + ' 幣';
+        if (res.newPoints !== undefined) {
+          currentMember.available_coins = res.newPoints;
+          document.getElementById('cardPoints').innerText = res.newPoints + ' 幣';
+        }
         loadActivitiesData();
+        showModalAlert(res.message, '參與成功', 'q2');
+      } else {
+        currentMember.available_coins = oldPoints;
+        document.getElementById('cardPoints').innerText = oldPoints + ' 幣';
+        showModalAlert(res.message, '參與失敗', 'q3');
       }
     }, '確認參與抽獎');
   }
+
   async function placeBid(auctionId, minBid) {
     let bidVal = Number(document.getElementById('bidInput_' + auctionId).value);
     if (bidVal < minBid) return showModalAlert(`出價必須 >= ${minBid} 幣`, '出價過低', 'q3');
     if (currentMember.available_coins < bidVal) return showModalAlert('可用拉咘幣不足！', '餘額不足', 'q3');
+    
     showModalConfirm(`確定出價 ${bidVal} 幣？（點數將暫時凍結）`, async () => {
+      showLoadingModal('小貓咪正在幫您競標喊價中...');
+
       let res = await callApi('/api/member/place-bid', 'POST', { memberId: currentMember.member_id, auctionId, bidAmount: bidVal });
+      
       showModalAlert(res.message, res.success ? '出價成功' : '出價失敗', res.success ? 'q2' : 'q3');
       if (res.success) {
         currentMember.available_coins = res.newPoints;
@@ -906,35 +981,65 @@ let status = String(p.status || '').trim();
       }
     }, '確認出價競標');
   }
+
   async function redeemProduct(productId, priceCoins, productName) {
     if (currentMember.available_coins < priceCoins) return showModalAlert('拉咘幣不足！', '餘額不足', 'q3');
+    
     showModalConfirm(`確定消耗 ${priceCoins} 幣兌換「${productName}」？`, async () => {
+      showLoadingModal('小貓咪正在為您打包商品中...');
+
+      let oldPoints = currentMember.available_coins;
+      currentMember.available_coins -= priceCoins;
+      document.getElementById('cardPoints').innerText = currentMember.available_coins + ' 幣';
+
       let res = await callApi('/api/member/redeem-product', 'POST', { memberId: currentMember.member_id, productId });
-      showModalAlert(res.message, res.success ? '兌換成功' : '兌換失敗', res.success ? 'q2' : 'q3');
+      
       if (res.success) {
-        currentMember.available_coins = res.newPoints;
-        document.getElementById('cardPoints').innerText = res.newPoints + ' 幣';
+        if (res.newPoints !== undefined) {
+          currentMember.available_coins = res.newPoints;
+          document.getElementById('cardPoints').innerText = res.newPoints + ' 幣';
+        }
         loadStoreProducts();
+        showModalAlert(res.message, '兌換成功', 'q2');
+      } else {
+        currentMember.available_coins = oldPoints;
+        document.getElementById('cardPoints').innerText = oldPoints + ' 幣';
+        showModalAlert(res.message, '兌換失敗', 'q3');
       }
     }, '確認商品兌換');
   }
+
   async function login() {
     let phone = document.getElementById('loginPhone').value.trim(), password = document.getElementById('loginPwd').value;
     if (!phone || !password) return showModalAlert('請輸入帳號密碼', '欄位空白', 'q3');
+    
+    showLoadingModal('小貓咪正在確認您的會員身分...');
     let res = await callApi('/api/member/login', 'POST', { phone, password });
+
     if (res.success) {
       localStorage.setItem('raibu_phone', phone); localStorage.setItem('raibu_pwd', password);
+      // 成功登入直接切換畫面，不需再跳Alert
+      let modalEl = document.getElementById('customAlertModal');
+      let myModal = bootstrap.Modal.getInstance(modalEl);
+      if (myModal) myModal.hide();
       showApp(res.member);
-    } else { showModalAlert(res.message, '登入失敗', 'q3'); }
+    } else { 
+      showModalAlert(res.message, '登入失敗', 'q3'); 
+    }
   }
+
   async function register() {
     if (!document.getElementById('chkTerms').checked) return showModalAlert('請先同意防範漏洞條款！', '條款未勾選', 'q3');
     let data = { name: document.getElementById('regName').value.trim(), phone: document.getElementById('regPhone').value.trim(), password: document.getElementById('regPwd').value, gender: document.getElementById('regGender').value, birthdate: document.getElementById('regBirthday').value };
     if (!data.name || !data.phone || !data.password) return showModalAlert('請完整填寫註冊資料', '欄位空白', 'q3');
+    
+    showLoadingModal('小貓咪正在為您辦理註冊...');
     let res = await callApi('/api/member/register', 'POST', data);
+
     showModalAlert(res.message, res.success ? '註冊成功' : '註冊失敗', res.success ? 'q2' : 'q3');
     if (res.success) { document.getElementById('loginPhone').value = data.phone; switchAuthTab('login'); }
   }
+
   function logout() {
     localStorage.clear(); currentMember = null;
     document.getElementById('appSection').style.display = 'none';
@@ -943,6 +1048,7 @@ let status = String(p.status || '').trim();
     let nav = document.getElementById('bottomNav'); nav.classList.remove('d-flex'); nav.classList.add('d-none');
     document.getElementById('authSection').style.display = 'block'; switchAuthTab('login');
   }
+
   async function showApp(member) {
     currentMember = member;
     document.getElementById('authSection').style.display = 'none';
@@ -965,6 +1071,7 @@ let status = String(p.status || '').trim();
     loadActivitiesData();
     loadProfileCenterData();
   }
+
   function switchAuthTab(t) {
     document.querySelectorAll('.auth-tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('loginForm').style.display = t === 'login' ? 'block' : 'none';
@@ -972,12 +1079,14 @@ let status = String(p.status || '').trim();
     let activeBtn = document.querySelectorAll('.auth-tab-btn')[t === 'login' ? 0 : 1];
     activeBtn.classList.add('active');
   }
+
   function switchStoreTab(name, btn) {
     document.querySelectorAll('.store-tab-content').forEach(c => c.classList.remove('active'));
     document.querySelectorAll('#storeTabs .nav-link').forEach(l => { l.classList.remove('active', 'text-white'); l.classList.add('text-dark'); l.style.backgroundColor = ''; });
     document.getElementById('tab' + name).classList.add('active');
     btn.classList.add('active', 'text-white'); btn.style.backgroundColor = '#032E5B';
   }
+
   function switchEventTab(name, btn) {
     document.querySelectorAll('.event-sub-content').forEach(c => c.style.display = 'none');
     document.querySelectorAll('#eventSubTabs .nav-link').forEach(l => { l.classList.remove('active', 'text-white'); l.classList.add('text-dark', 'bg-light'); l.style.backgroundColor = ''; });
@@ -985,6 +1094,7 @@ let status = String(p.status || '').trim();
     btn.classList.add('active', 'text-white'); btn.classList.remove('bg-light', 'text-dark');
     btn.style.backgroundColor = name === 'Lottery' ? '#d9534f' : '#212529';
   }
+
   function navTo(name, btn) {
     document.querySelectorAll('.page-section').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item-btn').forEach(b => b.classList.remove('active'));
