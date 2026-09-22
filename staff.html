@@ -26,9 +26,40 @@
     .page-section, .sub-section { display: none; }
     .page-section.active, .sub-section.active { display: block; }
     .preview-img { max-height: 100px; object-fit: cover; border-radius: 6px; margin-top: 3px; }
+
+    /* 自定義彈出區塊提示 Modal 樣式 */
+    #customAlertOverlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.5); z-index: 9999;
+      display: none; justify-content: center; align-items: center;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+    .custom-alert-box {
+      background: white; border-radius: 16px; padding: 25px 20px;
+      width: 90%; max-width: 360px; text-align: center;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      transform: scale(0.9); animation: scaleUp 0.2s ease-in-out forwards;
+    }
+    .custom-alert-img { width: 70px; height: 70px; object-fit: contain; margin-bottom: 15px; }
+    .custom-alert-text { font-size: 0.95rem; color: #333; margin-bottom: 20px; white-space: pre-wrap; word-break: break-all; }
+    .custom-alert-btn-group { display: flex; gap: 10px; justify-content: center; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes scaleUp { from { transform: scale(0.9); } to { transform: scale(1); } }
   </style>
 </head>
 <body>
+
+<!-- 自定義漂亮彈出區塊 (替代原生 alert/confirm) -->
+<div id="customAlertOverlay">
+  <div class="custom-alert-box">
+    <img id="customAlertImg" src="" alt="icon" class="custom-alert-img" style="display: none;">
+    <div id="customAlertText" class="custom-alert-text">提示訊息內容</div>
+    <div id="customAlertBtnGroup" class="custom-alert-btn-group">
+      <button id="customAlertConfirmBtn" class="btn btn-warning text-dark fw-bold px-4 py-2 w-100" onclick="closeCustomAlert(true)">確定</button>
+    </div>
+  </div>
+</div>
+
 <div class="container-fluid py-2 px-2">
   <!-- 登入驗證畫面 -->
   <div id="loginBlock" class="card shadow-sm mx-auto mt-5" style="max-width: 380px;">
@@ -659,7 +690,6 @@
           </div>
         </div>
       </div>
-
       <!-- 會員回訪與沈睡週期分析 -->
       <div class="card shadow-sm mb-2 border-secondary">
         <div class="card-header bg-secondary text-white py-1 px-2 fw-bold d-flex justify-content-between align-items-center" style="font-size:0.8rem; cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#sleepMemberCollapse">
@@ -678,7 +708,6 @@
           </div>
         </div>
       </div>
-
       <!-- 總覽與當月數據整合雙層卡片區塊 -->
       <div class="row g-2 mb-2">
         <div class="col-md-3 col-6"><div class="card bg-primary text-white p-2 shadow-sm text-center"><small style="font-size:0.7rem;">總註冊 / 當月註冊</small><h6 class="fw-bold m-0"><span id="statTotalMembers">0人</span> / <span id="statMonthMembers" class="text-warning">0人</span></h6></div></div>
@@ -691,11 +720,8 @@
 				<span id="statTotalRemainingCoins">0幣</span> / <span id="statMonthBirthday" class="text-warning">0人</span>
 			</h6>
 		</div>
-
 	</div>
-
       </div>
-
       <!-- TOP3 排行榜 -->
       <div class="row g-2 mb-2">
         <div class="col-md-4 col-12">
@@ -723,7 +749,6 @@
           </div>
         </div>
       </div>
-
       <!-- 每周平均消費 -->
       <div class="card shadow-sm mb-2">
         <div class="card-header bg-white py-1 px-2 fw-bold" style="font-size:0.8rem;">📅 當月週一～週日平均消費</div>
@@ -748,7 +773,6 @@
           </div>
         </div>
       </div>
-
       <!-- 每小時：男女及總平均消費 / 各年齡層平均消費 (Tab頁籤整併) -->
       <div class="card shadow-sm">
         <div class="card-header bg-white py-1 px-2 d-flex justify-content-between align-items-center">
@@ -789,7 +813,6 @@
           </div>
         </div>
       </div>
-
     </div>
     
   </div>
@@ -815,6 +838,59 @@
   let stagedAuctionFile = null;
   let stagedProductFile = null;
   let stagedAnnouncementFile = null;
+  
+  let customAlertCallback = null;
+
+  // 自定義彈出區塊控制函式 (已整合您指定的圖片 URL 與圖示類型)
+  function showCustomAlert(text, type = 'info', callback = null) {
+    const overlay = document.getElementById('customAlertOverlay');
+    const imgEl = document.getElementById('customAlertImg');
+    const textEl = document.getElementById('customAlertText');
+    const btnGroup = document.getElementById('customAlertBtnGroup');
+    
+    customAlertCallback = callback;
+    textEl.innerText = text;
+
+    // 根據傳入的類型配置對應的圖片 URL
+    let imgUrl = '';
+    if (type === 'success') {
+      imgUrl = 'https://xevxgbfamlrrylqkewlw.supabase.co/storage/v1/object/public/labulabu/q2.png';
+    } else if (type === 'error' || type === 'fail') {
+      imgUrl = 'https://xevxgbfamlrrylqkewlw.supabase.co/storage/v1/object/public/labulabu/q3.png';
+    } else {
+      // 預設提醒類型
+      imgUrl = 'https://xevxgbfamlrrylqkewlw.supabase.co/storage/v1/object/public/labulabu/q1.png';
+    }
+
+    if (imgUrl) {
+      imgEl.src = imgUrl;
+      imgEl.style.display = 'inline-block';
+    } else {
+      imgEl.style.display = 'none';
+    }
+
+    if (type === 'confirm') {
+      btnGroup.innerHTML = `
+        <button class="btn btn-secondary w-50 py-2 me-1" onclick="closeCustomAlert(false)">取消</button>
+        <button class="btn btn-warning text-dark fw-bold w-50 py-2" onclick="closeCustomAlert(true)">確定</button>
+      `;
+    } else {
+      btnGroup.innerHTML = `
+        <button class="btn btn-warning text-dark fw-bold px-4 py-2 w-100" onclick="closeCustomAlert(true)">確定</button>
+      `;
+    }
+
+    overlay.style.display = 'flex';
+  }
+
+  function closeCustomAlert(result) {
+    document.getElementById('customAlertOverlay').style.display = 'none';
+    if (customAlertCallback) {
+      let cb = customAlertCallback;
+      customAlertCallback = null;
+      cb(result);
+    }
+  }
   
   async function callApi(endpoint, method = 'GET', data = null) {
     const options = { method, headers: { 'Content-Type': 'application/json' } };
@@ -917,28 +993,30 @@
   
   async function toggleHighAuthModal() {
     if (isHighAuthUnlocked()) {
-      if (confirm('確定要鎖定高級管理員權限嗎？')) {
-        localStorage.removeItem('raibu_high_auth');
-        updateAuthUI();
-        alert('已切回一般店員權限！');
-        let activePage = document.querySelector('.page-section.active')?.id;
-        if (['pageAdminLottery', 'pageAdminAuction', 'pageAdminPanel'].includes(activePage)) {
-          posNav('PosMain', document.querySelector('.pos-nav-btn'));
+      showCustomAlert('確定要鎖定高級管理員權限嗎？', 'confirm', function(res) {
+        if (res) {
+          localStorage.removeItem('raibu_high_auth');
+          updateAuthUI();
+          showCustomAlert('已切回一般店員權限！', 'success');
+          let activePage = document.querySelector('.page-section.active')?.id;
+          if (['pageAdminLottery', 'pageAdminAuction', 'pageAdminPanel'].includes(activePage)) {
+            posNav('PosMain', document.querySelector('.pos-nav-btn'));
+          }
         }
-      }
+      });
     } else {
       let pwd = prompt('請輸入「高級管理員登入密碼」：');
       if (!pwd) return;
       let res = await callApi('/api/system_settings');
-      if (!res.success || !res.system_settings) return alert('無法驗證密碼！');
+      if (!res.success || !res.system_settings) return showCustomAlert('無法驗證密碼！', 'fail');
       let targetSetting = res.system_settings.find(s => s.setting_key === '高級管理員登入密碼');
       let correctPwd = targetSetting ? targetSetting.value || targetSetting.setting_value : '1234';
       if (pwd.trim() === String(correctPwd).trim()) {
         localStorage.setItem('raibu_high_auth', 'true');
         updateAuthUI();
-        alert('⭐ 高級管理員解鎖成功！');
+        showCustomAlert('⭐ 高級管理員解鎖成功！', 'success');
       } else {
-        alert('密碼錯誤！');
+        showCustomAlert('密碼錯誤！', 'fail');
       }
     }
   }
@@ -965,16 +1043,16 @@
   
   async function verifyAdmin() {
     let pwd = document.getElementById('adminPassword').value;
-    if (!pwd) return alert('請輸入密碼！');
+    if (!pwd) return showCustomAlert('請輸入密碼！', 'info');
     let res = await callApi('/api/system_settings');
-    if (!res.success || !res.system_settings) return alert('無法連線至系統設定！');
+    if (!res.success || !res.system_settings) return showCustomAlert('無法連線至系統設定！', 'fail');
     let targetSetting = res.system_settings.find(s => s.setting_key === '管理員登入密碼');
     let correctPwd = targetSetting ? targetSetting.value || targetSetting.setting_value : '1234';
     if (pwd.trim() === String(correctPwd).trim()) {
       localStorage.setItem('raibu_pos_auth', 'true');
       showStaffApp();
     } else {
-      alert('管理員密碼驗證失敗！');
+      showCustomAlert('管理員密碼驗證失敗！', 'fail');
     }
   }
   
@@ -998,7 +1076,7 @@
   
   async function searchMember() {
     let kw = document.getElementById('searchInput').value.trim();
-    if (!kw) return alert('請輸入查詢關鍵字！');
+    if (!kw) return showCustomAlert('請輸入查詢關鍵字！', 'info');
     let res = await callApi('/api/pos/search', 'POST', { keyword: kw });
     if (!res.success) {
       document.getElementById('posStatusMsg').innerText = res.message;
@@ -1066,13 +1144,13 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
   async function submitTransaction() {
-    if (!currentMemberId) return alert('請先搜尋並選擇會員！');
+    if (!currentMemberId) return showCustomAlert('請先搜尋並選擇會員！', 'info');
     let type = document.getElementById('transType').value;
     let amount = document.getElementById('transAmount').value;
     let multiplier = document.getElementById('transMultiplier').value;
     let extraAddCoins = document.getElementById('transExtraCoins').value;
     let reason = document.getElementById('transReason').value;
-    if (!amount || Number(amount) <= 0) return alert('請輸入有效的金額！');
+    if (!amount || Number(amount) <= 0) return showCustomAlert('請輸入有效的金額！', 'info');
     let res = await callApi('/api/pos/transaction', 'POST', {
       memberId: currentMemberId, 
       type, 
@@ -1091,15 +1169,18 @@
       document.getElementById('transAmount').value = '';
       document.getElementById('transReason').value = '';
       loadRecentStoreLogs();
+      showCustomAlert(res.message, 'success');
+    } else {
+      showCustomAlert(res.message, 'fail');
     }
   }
   
   async function redeemSelectedCoupons() {
     let checked = document.querySelectorAll('.coupon-checkbox:checked');
-    if (checked.length === 0) return alert('請勾選要核銷的優惠券！');
+    if (checked.length === 0) return showCustomAlert('請勾選要核銷的優惠券！', 'info');
     let ticketIds = Array.from(checked).map(cb => cb.value);
     let res = await callApi('/api/pos/redeem-coupons', 'POST', { ticketIds });
-    alert(res.message);
+    showCustomAlert(res.message, res.success ? 'success' : 'fail');
     if (res.success) {
       searchMember();
       loadRecentStoreLogs();
@@ -1199,7 +1280,7 @@
       try {
         imageId = await uploadStagedImage(stagedAuctionFile, 'auction');
         document.getElementById('auctionImageId').value = imageId;
-      } catch (err) { alert('圖片上傳失敗：' + err.message); return; }
+      } catch (err) { showCustomAlert('圖片上傳失敗：' + err.message, 'fail'); return; }
     }
     let data = {
       auction_id: document.getElementById('auctionId').value,
@@ -1213,20 +1294,22 @@
       description: document.getElementById('auctionDesc').value,
       status: '進行中'
     };
-    if (!data.auction_id || !data.title) return alert('拍賣品 ID 與標題不得為空！');
+    if (!data.auction_id || !data.title) return showCustomAlert('拍賣品 ID 與標題不得為空！', 'info');
     let res = await callApi('/api/auctions/upsert', 'POST', data);
-    alert(res.message);
+    showCustomAlert(res.message, res.success ? 'success' : 'fail');
     if (res.success) { stagedAuctionFile = null; loadAuctionManagementData(); }
   }
   
   async function deleteAuctionEvent() {
     let auctionId = document.getElementById('auctionId').value;
-    if (!auctionId) return alert('請選擇拍賣品！');
-    if (confirm(`確定要刪除拍賣品 [${auctionId}] 嗎？`)) {
-      let res = await callApi('/api/auctions/delete', 'POST', { auctionId });
-      alert(res.message);
-      if (res.success) { prepareNewAuction(); loadAuctionManagementData(); }
-    }
+    if (!auctionId) return showCustomAlert('請選擇拍賣品！', 'info');
+    showCustomAlert(`確定要刪除拍賣品 [${auctionId}] 嗎？`, 'confirm', async function(resConfirm) {
+      if (resConfirm) {
+        let res = await callApi('/api/auctions/delete', 'POST', { auctionId });
+        showCustomAlert(res.message, res.success ? 'success' : 'fail');
+        if (res.success) { prepareNewAuction(); loadAuctionManagementData(); }
+      }
+    });
   }
   
   function onCloseAuctionSelectChange() {
@@ -1248,16 +1331,18 @@
   
   async function executeCloseAuction() {
     let id = document.getElementById('closeAuctionSelect').value;
-    if (!id) return alert('請選擇拍賣品！');
-    if (confirm('確定要執行手動結標嗎？系統將自動判定得標者、扣除凍結點數並派發券。')) {
-      let res = await callApi('/api/admin/auction/close', 'POST', { auctionId: id });
-      alert(res.message);
-      if (res.success) {
-        document.getElementById('closeAuctionInfoBox').style.display = 'none';
-        document.getElementById('btnExecuteCloseAuction').disabled = true;
-        loadAuctionManagementData();
+    if (!id) return showCustomAlert('請選擇拍賣品！', 'info');
+    showCustomAlert('確定要執行手動結標嗎？系統將自動判定得標者、扣除凍結點數並派發券。', 'confirm', async function(resConfirm) {
+      if (resConfirm) {
+        let res = await callApi('/api/admin/auction/close', 'POST', { auctionId: id });
+        showCustomAlert(res.message, res.success ? 'success' : 'fail');
+        if (res.success) {
+          document.getElementById('closeAuctionInfoBox').style.display = 'none';
+          document.getElementById('btnExecuteCloseAuction').disabled = true;
+          loadAuctionManagementData();
+        }
       }
-    }
+    });
   }
   
   function onHistoryAuctionSelectChange() {
@@ -1345,13 +1430,13 @@
     let eventId = document.getElementById('lotteryId').value.trim();
     if (!eventId) { await prepareNewLottery(); eventId = document.getElementById('lotteryId').value.trim(); }
     let title = document.getElementById('lotteryTitle').value.trim();
-    if (!title) return alert('請輸入活動標題！');
+    if (!title) return showCustomAlert('請輸入活動標題！', 'info');
     let imageId = document.getElementById('lotteryImageId').value;
     if (stagedLotteryFile) {
       try {
         imageId = await uploadStagedImage(stagedLotteryFile, 'lottery');
         document.getElementById('lotteryImageId').value = imageId;
-      } catch (err) { alert('圖片上傳失敗：' + err.message); return; }
+      } catch (err) { showCustomAlert('圖片上傳失敗：' + err.message, 'fail'); return; }
     }
     let data = {
       event_id: eventId,
@@ -1367,18 +1452,20 @@
       rules: document.getElementById('lotteryRules').value.trim()
     };
     let res = await callApi('/api/admin/lottery/upsert', 'POST', data);
-    alert(res.message);
+    showCustomAlert(res.message, res.success ? 'success' : 'fail');
     if (res.success) { stagedLotteryFile = null; loadLotteryManagementData(); }
   }
   
   async function deleteLotteryEvent() {
     let eventId = document.getElementById('lotteryId').value.trim();
-    if (!eventId) return alert('未選擇活動！');
-    if (confirm(`確定要刪除抽獎活動 [${eventId}] 嗎？`)) {
-      let res = await callApi('/api/admin/lottery/delete', 'POST', { eventId });
-      alert(res.message);
-      if (res.success) { prepareNewLottery(); loadLotteryManagementData(); }
-    }
+    if (!eventId) return showCustomAlert('未選擇活動！', 'info');
+    showCustomAlert(`確定要刪除抽獎活動 [${eventId}] 嗎？`, 'confirm', async function(resConfirm) {
+      if (resConfirm) {
+        let res = await callApi('/api/admin/lottery/delete', 'POST', { eventId });
+        showCustomAlert(res.message, res.success ? 'success' : 'fail');
+        if (res.success) { prepareNewLottery(); loadLotteryManagementData(); }
+      }
+    });
   }
   
   function onDrawSelectChange() {
@@ -1400,16 +1487,18 @@
   
   async function executeDrawLottery() {
     let id = document.getElementById('drawLotterySelect').value;
-    if (!id) return alert('請選擇活動！');
-    if (confirm('確定執行隨機開獎、自動派發兌換券並關閉此活動？')) {
-      let res = await callApi('/api/admin/lottery/draw', 'POST', { eventId: id });
-      alert(res.message);
-      if (res.success) {
-        document.getElementById('drawInfoBox').style.display = 'none';
-        document.getElementById('btnExecuteDraw').disabled = true;
-        loadLotteryManagementData();
+    if (!id) return showCustomAlert('請選擇活動！', 'info');
+    showCustomAlert('確定執行隨機開獎、自動派發兌換券並關閉此活動？', 'confirm', async function(resConfirm) {
+      if (resConfirm) {
+        let res = await callApi('/api/admin/lottery/draw', 'POST', { eventId: id });
+        showCustomAlert(res.message, res.success ? 'success' : 'fail');
+        if (res.success) {
+          document.getElementById('drawInfoBox').style.display = 'none';
+          document.getElementById('btnExecuteDraw').disabled = true;
+          loadLotteryManagementData();
+        }
       }
-    }
+    });
   }
   
   function onHistorySelectChange() {
@@ -1509,10 +1598,10 @@
   
   async function searchAdminMember() {
     let kw = document.getElementById('adminMemberSearchInput').value.trim();
-    if (!kw) return alert('請輸入查詢關鍵字（電話、完整ID或末5碼）！');
+    if (!kw) return showCustomAlert('請輸入查詢關鍵字（電話、完整ID或末5碼）！', 'info');
     let res = await callApi('/api/pos/search', 'POST', { keyword: kw });
     if (!res.success || !res.member) {
-      alert('找不到符合條件的會員！');
+      showCustomAlert('找不到符合條件的會員！', 'fail');
       document.getElementById('adminMemberFormContainer').style.display = 'none';
       return;
     }
@@ -1581,12 +1670,14 @@
   
   async function deleteProduct() {
     let productId = document.getElementById('prodId').value;
-    if (!productId) return alert('請先選擇要刪除的商品！');
-    if (confirm(`確定要刪除商品 [${productId}] 嗎？此動作無法復原。`)) {
-      let res = await callApi('/api/admin/products/delete', 'POST', { productId });
-      alert(res.message);
-      if (res.success) { prepareNewProduct(); loadAllAdminCaches(); }
-    }
+    if (!productId) return showCustomAlert('請先選擇要刪除的商品！', 'info');
+    showCustomAlert(`確定要刪除商品 [${productId}] 嗎？此動作無法復原。`, 'confirm', async function(resConfirm) {
+      if (resConfirm) {
+        let res = await callApi('/api/admin/products/delete', 'POST', { productId });
+        showCustomAlert(res.message, res.success ? 'success' : 'fail');
+        if (res.success) { prepareNewProduct(); loadAllAdminCaches(); }
+      }
+    });
   }
   
   async function saveProduct() {
@@ -1595,7 +1686,7 @@
       try {
         imageId = await uploadStagedImage(stagedProductFile, 'product');
         document.getElementById('prodImageId').value = imageId;
-      } catch (err) { alert('商品圖片上傳失敗：' + err.message); return; }
+      } catch (err) { showCustomAlert('商品圖片上傳失敗：' + err.message, 'fail'); return; }
     }
     let data = {
       product_id: document.getElementById('prodId').value,
@@ -1610,7 +1701,7 @@
       description: document.getElementById('prodDesc').value
     };
     let res = await callApi('/api/admin/products/upsert', 'POST', data);
-    alert(res.message);
+    showCustomAlert(res.message, res.success ? 'success' : 'fail');
     if (res.success) { stagedProductFile = null; loadAllAdminCaches(); }
   }
   
@@ -1650,12 +1741,14 @@
   
   async function deleteVirtualCode() {
     let code = document.getElementById('codeKey').value;
-    if (!code) return alert('請先選擇要刪除的虛擬序號！');
-    if (confirm(`確定要刪除虛擬序號 [${code}] 嗎？`)) {
-      let res = await callApi('/api/admin/virtual-codes/delete', 'POST', { code });
-      alert(res.message);
-      if (res.success) { prepareNewCode(); loadAllAdminCaches(); }
-    }
+    if (!code) return showCustomAlert('請先選擇要刪除的虛擬序號！', 'info');
+    showCustomAlert(`確定要刪除虛擬序號 [${code}] 嗎？`, 'confirm', async function(resConfirm) {
+      if (resConfirm) {
+        let res = await callApi('/api/admin/virtual-codes/delete', 'POST', { code });
+        showCustomAlert(res.message, res.success ? 'success' : 'fail');
+        if (res.success) { prepareNewCode(); loadAllAdminCaches(); }
+      }
+    });
   }
   
   async function saveVirtualCode() {
@@ -1669,7 +1762,7 @@
       random_pool: document.getElementById('codeRandomPool').value
     };
     let res = await callApi('/api/admin/virtual-codes/upsert', 'POST', data);
-    alert(res.message);
+    showCustomAlert(res.message, res.success ? 'success' : 'fail');
     if (res.success) loadAllAdminCaches();
   }
   
@@ -1688,7 +1781,7 @@
       notes: document.getElementById('admMemberNotes').value
     };
     let res = await callApi('/api/admin/members/upsert', 'POST', data);
-    alert(res.message);
+    showCustomAlert(res.message, res.success ? 'success' : 'fail');
     if (res.success) loadAllAdminCaches();
   }
   
@@ -1732,7 +1825,7 @@
       try {
         imageId = await uploadStagedImage(stagedAnnouncementFile, 'announcement');
         document.getElementById('annImageId').value = imageId;
-      } catch (err) { alert('公告圖片上傳失敗：' + err.message); return; }
+      } catch (err) { showCustomAlert('公告圖片上傳失敗：' + err.message, 'fail'); return; }
     }
     let data = {
       announcement_id: document.getElementById('annId').value,
@@ -1740,13 +1833,13 @@
       status: document.getElementById('annStatus').value,
       is_pinned: document.getElementById('annIsPinned').value === '是',
       content: document.getElementById('annContent').value,
-      filter_unspent_days: parseInt(document.getElementById('annFilterUnspentDays').value, 10) || -1,
-      filter_age_range: document.getElementById('annFilterAgeRange').value.trim() || '全部',
-      filter_gender: document.getElementById('annFilterGender').value || '全部',
+      filter_unspent_days: Number(document.getElementById('annFilterUnspentDays').value) || -1,
+      filter_age_range: document.getElementById('annFilterAgeRange').value,
+      filter_gender: document.getElementById('annFilterGender').value,
       image_id: imageId
     };
     let res = await callApi('/api/admin/announcements/upsert', 'POST', data);
-    alert(res.message);
+    showCustomAlert(res.message, res.success ? 'success' : 'fail');
     if (res.success) { stagedAnnouncementFile = null; loadAllAdminCaches(); }
   }
   
@@ -1755,7 +1848,7 @@
     if (!key || !settingsCache[key]) return;
     let s = settingsCache[key];
     document.getElementById('settingKey').value = s.setting_key;
-    document.getElementById('settingVal').value = s.value || s.setting_value || '';
+    document.getElementById('settingVal').value = s.value !== undefined ? s.value : s.setting_value;
     document.getElementById('settingDesc').value = s.description || '';
   }
   
@@ -1766,243 +1859,117 @@
       description: document.getElementById('settingDesc').value
     };
     let res = await callApi('/api/admin/settings/upsert', 'POST', data);
-    alert(res.message);
+    showCustomAlert(res.message, res.success ? 'success' : 'fail');
     if (res.success) loadAllAdminCaches();
   }
   
   async function loadFullAnalyticsData() {
     let monthVal = document.getElementById('analyticsMonthInput').value;
-    if (!monthVal) return alert('請選擇欲查詢的月份！');
-    try {
-      let [mRes, logRes, cRes] = await Promise.all([
-        fetch(`${SUPABASE_URL}/members?select=*`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }).then(r => r.json()),
-        fetch(`${SUPABASE_URL}/point_logs?select=*`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }).then(r => r.json()),
-        fetch(`${SUPABASE_URL}/coupons?select=*`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }).then(r => r.json())
-      ]);
-      let members = Array.isArray(mRes) ? mRes : [];
-      let logs = Array.isArray(logRes) ? logRes : [];
-      let coupons = Array.isArray(cRes) ? cRes : [];
-      let memberMap = {};
-      members.forEach(m => { memberMap[m.member_id] = m; });
-      
-      let totalMembers = members.length;
-      let validCoinTypes = ['消費', '扣除', '活動扣回', '活動加點'];
-      let totalCoinsIssued = logs.filter(l => validCoinTypes.includes(l.type)).reduce((sum, l) => sum + (Number(l.change_amount) || 0), 0);
-      let totalSpent = members.reduce((sum, m) => sum + (Number(m.total_spent) || 0), 0);
-      let totalRemainingCoins = members.reduce((sum, m) => sum + (Number(m.available_coins) || 0), 0);
-      let [yearStr, monthStr] = monthVal.split('-');
-      let monthMembers = members.filter(m => m.created_at && m.created_at.startsWith(monthVal)).length;
-      let monthLogs = logs.filter(l => l.created_at && l.created_at.startsWith(monthVal));
-      let monthCoinsIssued = monthLogs.filter(l => validCoinTypes.includes(l.type)).reduce((sum, l) => sum + (Number(l.change_amount) || 0), 0);
-      let monthSpent = monthLogs.filter(l => ['消費', '扣除'].includes(l.type)).reduce((sum, l) => sum + (Number(l.spent_amount) || Number(l.amount) || 0), 0);
-      let monthBirthdayCount = members.filter(m => {
-        if (!m.birthdate) return false;
-        let bDate = new Date(m.birthdate);
-        return !isNaN(bDate.getTime()) && (bDate.getMonth() + 1) === Number(monthStr);
-      }).length;
-      
-      document.getElementById('statTotalMembers').innerText = totalMembers + '人';
-      document.getElementById('statTotalCoins').innerText = totalCoinsIssued.toLocaleString() + '幣';
-      document.getElementById('statTotalSpent').innerText = '$' + totalSpent.toLocaleString();
-      document.getElementById('statTotalRemainingCoins').innerText = totalRemainingCoins.toLocaleString() + '幣';
-      document.getElementById('statMonthMembers').innerText = monthMembers + '人';
-      document.getElementById('statMonthCoins').innerText = monthCoinsIssued.toLocaleString() + '幣';
-      document.getElementById('statMonthSpent').innerText = '$' + monthSpent.toLocaleString();
-      document.getElementById('statMonthBirthday').innerText = monthBirthdayCount + '人';
-      
-      // 💡 計算會員距離上次消費天數分佈（略過空值）
-      let nowTime = new Date().getTime();
-      let u15 = 0, u30 = 0, u60 = 0, u90 = 0, over90 = 0;
-      members.forEach(m => {
-        if (!m.last_spent_at) {
-          return; // 若 last_spent_at 為空值，不計入沈睡週期
-        }
-        let lastTime = new Date(m.last_spent_at).getTime();
-        let diffDays = Math.floor((nowTime - lastTime) / (1000 * 60 * 60 * 24));
-        if (diffDays <= 15) u15++;
-        else if (diffDays <= 30) u30++;
-        else if (diffDays <= 60) u60++;
-        else if (diffDays <= 90) u90++;
-        else over90++;
-      });
-      document.getElementById('sleepU15').innerText = u15 + '人';
-      document.getElementById('sleepU30').innerText = u30 + '人';
-      document.getElementById('sleepU60').innerText = u60 + '人';
-      document.getElementById('sleepU90').innerText = u90 + '人';
-      document.getElementById('sleepOver90').innerText = over90 + '人';
-      
-      let redeemCounts = {}, addonCounts = {};
-      coupons.forEach(c => {
-        let name = c.title || c.product_name || c.coupon_code || '未知商品';
-        let isAddon = (Number(c.add_amount) || 0) > 0 || String(c.category || '').includes('加購');
-        if (isAddon) {
-          addonCounts[name] = (addonCounts[name] || 0) + 1;
-        } else {
-          redeemCounts[name] = (redeemCounts[name] || 0) + 1;
-        }
-      });
-      let topRedeem = Object.entries(redeemCounts).sort((a,b) => b[1] - a[1]).slice(0, 3);
-      let topAddon = Object.entries(addonCounts).sort((a,b) => b[1] - a[1]).slice(0, 3);
-      let redeemHtml = '';
-      topRedeem.forEach(([name, count], idx) => {
-        redeemHtml += `<li class="list-group-item d-flex justify-content-between align-items-center py-1"><span>${idx+1}. ${name}</span><span class="badge bg-danger">${count} 次</span></li>`;
-      });
-      document.getElementById('topRedeemList').innerHTML = redeemHtml || '<li class="list-group-item text-center text-muted py-1">無兌換紀錄</li>';
-      let addonHtml = '';
-      topAddon.forEach(([name, count], idx) => {
-        addonHtml += `<li class="list-group-item d-flex justify-content-between align-items-center py-1"><span>${idx+1}. ${name}</span><span class="badge bg-warning text-dark">${count} 次</span></li>`;
-      });
-      document.getElementById('topAddonList').innerHTML = addonHtml || '<li class="list-group-item text-center text-muted py-1">無加購紀錄</li>';
-      
-      let memberSpentMap = {};
-      monthLogs.filter(l => ['消費', '扣除'].includes(l.type) && l.member_id).forEach(l => {
-        let mId = l.member_id;
-        let amt = Number(l.spent_amount) || Number(l.amount) || 0;
-        memberSpentMap[mId] = (memberSpentMap[mId] || 0) + amt;
-      });
-      let topMembers = Object.entries(memberSpentMap).sort((a, b) => b[1] - a[1]).slice(0, 3);
-      let memberSpentHtml = '';
-      topMembers.forEach(([mId, amt], idx) => {
-        memberSpentHtml += `<li class="list-group-item d-flex justify-content-between align-items-center py-1"><span>${idx+1}. ID: ${mId}</span><span class="badge bg-success">$${amt.toLocaleString()}</span></li>`;
-      });
-      document.getElementById('topMemberSpentList').innerHTML = memberSpentHtml || '<li class="list-group-item text-center text-muted py-1">尚無消費紀錄</li>';
-      
-      let daysInMonth = new Date(yearStr, monthStr, 0).getDate();
-      let weekdayCounts = {1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0};
-      for (let d = 1; d <= daysInMonth; d++) {
-        let jsDay = new Date(yearStr, Number(monthStr)-1, d).getDay();
-        let isoDay = jsDay === 0 ? 7 : jsDay;
-        weekdayCounts[isoDay]++;
-      }
-      let weekdaySum = {1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0};
-      monthLogs.filter(l => ['消費', '扣除'].includes(l.type)).forEach(l => {
-        let w = Number(l.spent_weekday) || new Date(l.created_at).getDay() || 7;
-        if (w === 0) w = 7;
-        let amt = Number(l.spent_amount) || Number(l.amount) || 0;
-        if (weekdaySum[w] !== undefined) weekdaySum[w] += amt;
-      });
-      for (let i = 1; i <= 7; i++) {
-        let avg = weekdayCounts[i] > 0 ? Math.round(weekdaySum[i] / weekdayCounts[i]) : 0;
-        let el = document.getElementById('avgW' + i);
-        if (el) el.innerText = '$' + avg.toLocaleString();
-      }
-      
-      let hourlyGender = {};
-      let hourlyAge = {};
-      for (let h = 0; h < 24; h++) {
-        hourlyGender[h] = { male: 0, female: 0, total: 0, maleCount: 0, femaleCount: 0, totalCount: 0 };
-        hourlyAge[h] = { under20: 0, b21_30: 0, b31_40: 0, b41_50: 0, over51: 0, counts: {u20:0, b21:0, b31:0, b41:0, o51:0} };
-      }
-      let currentYear = new Date().getFullYear();
-      monthLogs.filter(l => ['消費', '扣除'].includes(l.type)).forEach(l => {
-        let h = Number(l.spent_hour);
-        if (isNaN(h)) {
-          h = l.created_at ? new Date(l.created_at).getHours() : 0;
-        }
-        let amt = Number(l.spent_amount) || Number(l.amount) || 0;
-        let member = memberMap[l.member_id] || {};
-        let gender = member.gender;
-        let birthdate = member.birthdate;
-        if (hourlyGender[h]) {
-          hourlyGender[h].total += amt;
-          hourlyGender[h].totalCount++;
-          if (gender === '男') {
-            hourlyGender[h].male += amt;
-            hourlyGender[h].maleCount++;
-          } else if (gender === '女') {
-            hourlyGender[h].female += amt;
-            hourlyGender[h].femaleCount++;
-          }
-        }
-        if (birthdate && hourlyAge[h]) {
-          let bYear = new Date(birthdate).getFullYear();
-          let age = currentYear - bYear;
-          if (!isNaN(age)) {
-            if (age <= 20) { hourlyAge[h].under20 += amt; hourlyAge[h].counts.u20++; }
-            else if (age <= 30) { hourlyAge[h].b21_30 += amt; hourlyAge[h].counts.b21++; }
-            else if (age <= 40) { hourlyAge[h].b31_40 += amt; hourlyAge[h].counts.b31++; }
-            else if (age <= 50) { hourlyAge[h].b41_50 += amt; hourlyAge[h].counts.b41++; }
-            else { hourlyAge[h].over51 += amt; hourlyAge[h].counts.o51++; }
-          }
-        }
-      });
-      let genderRows = '', ageRows = '';
-      for (let h = 0; h < 24; h++) {
-        let hStr = String(h).padStart(2, '0') + ':00';
-        let g = hourlyGender[h];
-        let a = hourlyAge[h];
-        let mAvg = g.maleCount > 0 ? Math.round(g.male / g.maleCount) : 0;
-        let fAvg = g.femaleCount > 0 ? Math.round(g.female / g.femaleCount) : 0;
-        let tAvg = g.totalCount > 0 ? Math.round(g.total / g.totalCount) : 0;
-        let u20Avg = a.counts.u20 > 0 ? Math.round(a.under20 / a.counts.u20) : 0;
-        let b21Avg = a.counts.b21 > 0 ? Math.round(a.b21_30 / a.counts.b21) : 0;
-        let b31Avg = a.counts.b31 > 0 ? Math.round(a.b31_40 / a.counts.b31) : 0;
-        let b41Avg = a.counts.b41 > 0 ? Math.round(a.b41_50 / a.counts.b41) : 0;
-        let o51Avg = a.counts.o51 > 0 ? Math.round(a.over51 / a.counts.o51) : 0;
-        genderRows += `<tr><td class="fw-bold py-1">${hStr}</td><td class="py-1">$${mAvg.toLocaleString()}</td><td class="py-1">$${fAvg.toLocaleString()}</td><td class="text-success fw-bold py-1">$${tAvg.toLocaleString()}</td></tr>`;
-        ageRows += `<tr><td class="fw-bold py-1">${hStr}</td><td class="py-1">$${u20Avg.toLocaleString()}</td><td class="py-1">$${b21Avg.toLocaleString()}</td><td class="py-1">$${b31Avg.toLocaleString()}</td><td class="py-1">$${b41Avg.toLocaleString()}</td><td class="py-1">$${o51Avg.toLocaleString()}</td></tr>`;
-      }
-      document.getElementById('hourlyGenderTbody').innerHTML = genderRows;
-      document.getElementById('hourlyAgeTbody').innerHTML = ageRows;
-    } catch (err) {
-      console.error('分析數據載入失敗:', err);
-      alert('載入分析數據發生異常');
+    if (!monthVal) return showCustomAlert('請選擇查詢月份！', 'info');
+    let res = await callApi(`/api/admin/analytics?month=${monthVal}`);
+    if (!res.success) {
+      showCustomAlert(res.message || '查詢分析數據失敗', 'fail');
+      return;
     }
-  }
-  
-  function switchLotterySubTab(name, btn) {
-    document.querySelectorAll('#pageAdminLottery .sub-section').forEach(s => s.classList.remove('active'));
-    document.querySelectorAll('#lotterySubNav button').forEach(b => b.classList.remove('active'));
-    document.getElementById('subLottery' + name).classList.add('active');
-    btn.classList.add('active');
-  }
-  
-  function switchAuctionSubTab(name, btn) {
-    document.querySelectorAll('#pageAdminAuction .sub-section').forEach(s => s.classList.remove('active'));
-    document.querySelectorAll('#auctionSubNav button').forEach(b => b.classList.remove('active'));
-    document.getElementById('subAuction' + name).classList.add('active');
-    btn.classList.add('active');
-  }
-  
-  async function posNav(name, btn) {
-    if (['AdminLottery', 'AdminAuction', 'AdminPanel'].includes(name)) {
-      if (!isHighAuthUnlocked()) {
-        let pwd = prompt('此分頁需要【高級管理員密碼】才能進入：');
-        if (!pwd) return;
-        let res = await callApi('/api/system_settings');
-        if (!res.success || !res.system_settings) return alert('無法驗證密碼！');
-        let targetSetting = res.system_settings.find(s => s.setting_key === '高級管理員登入密碼');
-        let correctPwd = targetSetting ? targetSetting.value || targetSetting.setting_value : '1234';
-        if (pwd.trim() === String(correctPwd).trim()) {
-          localStorage.setItem('raibu_high_auth', 'true');
-          updateAuthUI();
-        } else {
-          alert('密碼錯誤，無法進入！');
-          return;
-        }
-      }
+    let d = res.data || {};
+    document.getElementById('statTotalMembers').innerText = (d.totalMembers || 0) + '人';
+    document.getElementById('statMonthMembers').innerText = (d.monthNewMembers || 0) + '人';
+    document.getElementById('statTotalCoins').innerText = (d.totalCoinsIssued || 0) + '幣';
+    document.getElementById('statMonthCoins').innerText = (d.monthCoinsIssued || 0) + '幣';
+    document.getElementById('statTotalSpent').innerText = '$' + (d.totalSpent || 0);
+    document.getElementById('statMonthSpent').innerText = '$' + (d.monthSpent || 0);
+    document.getElementById('statTotalRemainingCoins').innerText = (d.totalRemainingCoins || 0) + '幣';
+    document.getElementById('statMonthBirthday').innerText = (d.monthBirthdayCount || 0) + '人';
+    
+    let sleep = d.sleepStats || {};
+    document.getElementById('sleepU15').innerText = (sleep.u15 || 0) + '人';
+    document.getElementById('sleepU30').innerText = (sleep.u30 || 0) + '人';
+    document.getElementById('sleepU60').innerText = (sleep.u60 || 0) + '人';
+    document.getElementById('sleepU90').innerText = (sleep.u90 || 0) + '人';
+    document.getElementById('sleepOver90').innerText = (sleep.over90 || 0) + '人';
+    
+    renderTopList('topRedeemList', d.topRedeemProducts);
+    renderTopList('topAddonList', d.topAddonProducts);
+    renderTopMemberSpentList('topMemberSpentList', d.topMembers);
+    
+    let wAvg = d.weekdaysAvg || {};
+    for (let i = 1; i <= 7; i++) {
+      document.getElementById(`avgW${i}`).innerText = '$' + (wAvg[i] || 0);
     }
     
-    document.querySelectorAll('.page-section').forEach(p => p.classList.remove('active'));
+    renderHourlyGenderTable(d.hourlyGenderAvg || []);
+    renderHourlyAgeTable(d.hourlyAgeAvg || []);
+  }
+  
+  function renderTopList(elementId, list) {
+    let el = document.getElementById(elementId);
+    el.innerHTML = '';
+    if (!list || list.length === 0) {
+      el.innerHTML = '<li class="list-group-item text-center text-muted py-1">尚無資料</li>';
+      return;
+    }
+    list.forEach((item, idx) => {
+      el.innerHTML += `<li class="list-group-item py-1 px-2 d-flex justify-content-between align-items-center"><span>${idx+1}. ${item.name}</span><span class="badge bg-dark">${item.count}次</span></li>`;
+    });
+  }
+  
+  function renderTopMemberSpentList(elementId, list) {
+    let el = document.getElementById(elementId);
+    el.innerHTML = '';
+    if (!list || list.length === 0) {
+      el.innerHTML = '<li class="list-group-item text-center text-muted py-1">尚無資料</li>';
+      return;
+    }
+    list.forEach((item, idx) => {
+      el.innerHTML += `<li class="list-group-item py-1 px-2 d-flex justify-content-between align-items-center"><span>${idx+1}. ${maskName(item.name)}</span><span class="badge bg-success">$${item.spent}</span></li>`;
+    });
+  }
+  
+  function renderHourlyGenderTable(dataList) {
+    let tbody = document.getElementById('hourlyGenderTbody');
+    tbody.innerHTML = '';
+    if (!dataList || dataList.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="text-muted py-2">無資料</td></tr>';
+      return;
+    }
+    dataList.forEach(row => {
+      tbody.innerHTML += `<tr><td>${row.hour}:00</td><td>$${row.maleAvg || 0}</td><td>$${row.femaleAvg || 0}</td><td class="fw-bold text-primary">$${row.totalAvg || 0}</td></tr>`;
+    });
+  }
+  
+  function renderHourlyAgeTable(dataList) {
+    let tbody = document.getElementById('hourlyAgeTbody');
+    tbody.innerHTML = '';
+    if (!dataList || dataList.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-muted py-2">無資料</td></tr>';
+      return;
+    }
+    dataList.forEach(row => {
+      tbody.innerHTML += `<tr><td>${row.hour}:00</td><td>$${row.ageU20 || 0}</td><td>$${row.age21_30 || 0}</td><td>$${row.age31_40 || 0}</td><td>$${row.age41_50 || 0}</td><td>$${row.ageO51 || 0}</td></tr>`;
+    });
+  }
+  
+  function posNav(sectionName, btn) {
+    document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.pos-nav-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('page' + name).classList.add('active'); 
+    document.getElementById('page' + sectionName).classList.add('active');
     btn.classList.add('active');
-    
-    if (name === 'AdminLottery') { loadLotteryManagementData(); }
-    if (name === 'AdminAuction') { loadAuctionManagementData(); }
-    if (name === 'AdminPanel') { loadAllAdminCaches(); }
-    if (name === 'Analytics') { loadFullAnalyticsData(); }
+    if (sectionName === 'AdminLottery') loadLotteryManagementData();
+    if (sectionName === 'AdminAuction') loadAuctionManagementData();
+    if (sectionName === 'Analytics') {
+      let monthInput = document.getElementById('analyticsMonthInput');
+      if (monthInput && monthInput.value) loadFullAnalyticsData();
+    }
   }
   
   function toggleEditNotes() {
-    if (!currentMemberId) return;
     let viewMode = document.getElementById('notesViewMode');
     let editMode = document.getElementById('notesEditMode');
     let btn = document.getElementById('btnEditNotes');
     if (editMode.style.display === 'none') {
       editMode.style.display = 'block';
       viewMode.style.display = 'none';
-      btn.innerText = '收起';
+      btn.innerText = '收合';
     } else {
       editMode.style.display = 'none';
       viewMode.style.display = 'block';
@@ -2011,15 +1978,12 @@
   }
   
   async function saveMemberNotes() {
-    if (!currentMemberId) return alert('尚未選擇會員！');
-    let newNotes = document.getElementById('notesInput').value.trim();
-    let res = await callApi('/api/pos/update-notes', 'POST', {
-      memberId: currentMemberId,
-      notes: newNotes
-    });
-    alert(res.message);
+    if (!currentMemberId) return showCustomAlert('未選擇會員！', 'info');
+    let notes = document.getElementById('notesInput').value;
+    let res = await callApi('/api/pos/update-notes', 'POST', { memberId: currentMemberId, notes });
+    showCustomAlert(res.message, res.success ? 'success' : 'fail');
     if (res.success) {
-      document.getElementById('notesViewMode').innerText = newNotes ? newNotes : '無';
+      document.getElementById('notesViewMode').innerText = notes ? notes : '無';
       toggleEditNotes();
     }
   }

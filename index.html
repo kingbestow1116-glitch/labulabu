@@ -181,7 +181,7 @@
 <body style="background-color: #032E5B;" id="bodyTag">
 <!-- 頂部導覽列 (登入後顯示) -->
 <div id="topNavbarContainer" class="top-header-bar py-2 px-3 d-flex justify-content-between align-items-center" style="display: none !important;">
-  <span class="fw-bold fs-5" style="color: #032E5B;">🍜 拉咘拉咘會員</span>
+  <span class="fw-bold fs-5" style="color: #032E5B;">🍜 拉咘拉佈會員</span>
   <div>
     <span id="userInfoHeader" class="badge bg-light text-dark px-2 py-1 border">未登入</span>
     <button id="btnLogout" class="btn btn-outline-danger btn-sm ms-2 py-0" style="display: none;" onclick="logout()">登出</button>
@@ -399,12 +399,82 @@
     <img src="https://xevxgbfamlrrylqkewlw.supabase.co/storage/v1/object/public/labulabu/btn4.png" alt="會員中心">
   </button>
 </div>
+
+<!-- 自定義漂亮彈窗元件 (Modal) -->
+<div class="modal fade" id="customAlertModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+      <div class="modal-body text-center p-4">
+        <img id="customAlertImg" src="https://xevxgbfamlrrylqkewlw.supabase.co/storage/v1/object/public/labulabu/q1.png" alt="提示圖示" style="width: 60px; height: 60px; object-fit: contain; margin-bottom: 12px;">
+        <h5 class="fw-bold mb-2 text-dark" id="customAlertTitle">提示訊息</h5>
+        <p class="text-secondary small mb-3" id="customAlertMessage">內容...</p>
+        <button type="button" class="btn w-100 text-white fw-bold rounded-pill" style="background-color: #032E5B;" data-bs-dismiss="modal">確定</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 自定義漂亮確認視窗元件 (Confirm Modal) -->
+<div class="modal fade" id="customConfirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+      <div class="modal-body text-center p-4">
+        <img src="https://xevxgbfamlrrylqkewlw.supabase.co/storage/v1/object/public/labulabu/q1.png" alt="確認圖示" style="width: 60px; height: 60px; object-fit: contain; margin-bottom: 12px;">
+        <h5 class="fw-bold mb-2 text-dark" id="customConfirmTitle">請確認操作</h5>
+        <p class="text-secondary small mb-3" id="customConfirmMessage">您確定要執行此操作嗎？</p>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary w-50 rounded-pill btn-sm fw-bold" data-bs-dismiss="modal" id="customConfirmCancelBtn">取消</button>
+          <button type="button" class="btn text-white w-50 rounded-pill btn-sm fw-bold" style="background-color: #032E5B;" id="customConfirmOkBtn">確定</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
   const API_BASE = 'https://labulabu.kingbestow1116.workers.dev';
   let currentMember = null;
   let html5QrCode = null;
   let isScannerRunning = false;
+
+  // 定義圖片網址常數
+  const IMG_Q1 = 'https://xevxgbfamlrrylqkewlw.supabase.co/storage/v1/object/public/labulabu/q1.png'; // 提醒/確認
+  const IMG_Q2 = 'https://xevxgbfamlrrylqkewlw.supabase.co/storage/v1/object/public/labulabu/q2.png'; // 成功
+  const IMG_Q3 = 'https://xevxgbfamlrrylqkewlw.supabase.co/storage/v1/object/public/labulabu/q3.png'; // 失敗
+
+  // 自定義漂亮提示框取代 alert (支援動態帶入 imgType: 'q1', 'q2', 'q3')
+  function showModalAlert(message, title = '系統提示', imgType = 'q1') {
+    document.getElementById('customAlertTitle').innerText = title;
+    document.getElementById('customAlertMessage').innerText = message;
+    
+    let imgUrl = IMG_Q1;
+    if (imgType === 'q2') imgUrl = IMG_Q2;
+    else if (imgType === 'q3') imgUrl = IMG_Q3;
+    
+    document.getElementById('customAlertImg').src = imgUrl;
+    let myModal = new bootstrap.Modal(document.getElementById('customAlertModal'));
+    myModal.show();
+  }
+
+  // 自定義漂亮確認框取代 confirm
+  function showModalConfirm(message, onConfirm, title = '確認操作') {
+    document.getElementById('customConfirmTitle').innerText = title;
+    document.getElementById('customConfirmMessage').innerText = message;
+    let modalEl = document.getElementById('customConfirmModal');
+    let myModal = new bootstrap.Modal(modalEl);
+    
+    let okBtn = document.getElementById('customConfirmOkBtn');
+    let newOkBtn = okBtn.cloneNode(true);
+    okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+    
+    newOkBtn.addEventListener('click', () => {
+      myModal.hide();
+      if (typeof onConfirm === 'function') onConfirm();
+    });
+    
+    myModal.show();
+  }
 
   async function callApi(endpoint, method = 'GET', data = null) {
     const options = { method, headers: { 'Content-Type': 'application/json' } };
@@ -443,38 +513,25 @@
         else { localStorage.removeItem('raibu_phone'); localStorage.removeItem('raibu_pwd'); }
       });
     }
-    // 監聽分頁切換事件（Visibility API）
     document.addEventListener('visibilitychange', async () => {
       if (document.visibilityState === 'visible' && currentMember) {
         try {
           const res = await callApi('/api/system-timestamps');
           if (res.success && res.timestamps) {
             const serverTs = res.timestamps;
-            
-            // 1. 檢查商品有無更新
             if (serverTs.product_updated_at !== localStorage.getItem('product_updated_at')) {
-              console.log('偵測到商品有更新，自動重新載入...');
               loadStoreProducts();
               localStorage.setItem('product_updated_at', serverTs.product_updated_at);
             }
-            
-            // 2. 檢查抽獎有無更新
             if (serverTs.lottery_updated_at !== localStorage.getItem('lottery_updated_at')) {
-              console.log('偵測到抽獎活動有更新，自動重新載入...');
               loadActivitiesData();
               localStorage.setItem('lottery_updated_at', serverTs.lottery_updated_at);
             }
-            
-            // 3. 檢查拍賣有無更新
             if (serverTs.auction_updated_at !== localStorage.getItem('auction_updated_at')) {
-              console.log('偵測到拍賣活動有更新，自動重新載入...');
               loadActivitiesData();
               localStorage.setItem('auction_updated_at', serverTs.auction_updated_at);
             }
-            
-            // 4. 檢查公告有無更新
             if (serverTs.announcement_updated_at !== localStorage.getItem('announcement_updated_at')) {
-              console.log('偵測到公告有更新，自動重新載入...');
               loadAnnouncements();
               localStorage.setItem('announcement_updated_at', serverTs.announcement_updated_at);
             }
@@ -486,7 +543,6 @@
     });
   };
 
-  // 初始化時間戳記的函式
   async function initSystemTimestamps() {
     let res = await callApi('/api/system-timestamps');
     if (res.success && res.timestamps) {
@@ -497,7 +553,6 @@
     }
   }
 
-  // 分享給好友功能
   async function shareToFriends() {
     const shareData = {
       title: '拉咘幣 O2O 會員中心',
@@ -510,14 +565,13 @@
         await navigator.share(shareData);
       } else {
         await navigator.clipboard.writeText(window.location.href);
-        alert('已成功複製會員中心連結，快去貼給好友吧！');
+        showModalAlert('已成功複製會員中心連結，快去貼給好友吧！', '分享成功', 'q2');
       }
     } catch (err) {
       console.log('分享取消或失敗', err);
     }
   }
 
-  // 💡 【新增】控制相機掃描 QR Code 的開關與邏輯
   async function toggleQrScanner() {
     const readerDiv = document.getElementById('qr-reader');
     const resultDiv = document.getElementById('qr-reader-results');
@@ -530,24 +584,20 @@
       
       try {
         await html5QrCode.start(
-          { facingMode: "environment" }, // 優先使用後鏡頭
+          { facingMode: "environment" },
           { fps: 10, qrbox: { width: 250, height: 250 } },
           async (decodedText, decodedResult) => {
-            // 掃描成功回調
             document.getElementById('inputVirtualCode').value = decodedText;
             resultDiv.innerText = `成功讀取序號: ${decodedText}`;
             await stopQrScanner();
-            // 自動觸發兌換
             redeemVirtualCode();
           },
-          (errorMessage) => {
-            // 掃描中（未對準時的每幀錯誤可忽略）
-          }
+          (errorMessage) => {}
         );
         isScannerRunning = true;
       } catch (err) {
         console.error("無法啟動相機:", err);
-        alert('無法啟動相機，請確認是否已授權相機權限或使用 HTTPS 連線。');
+        showModalAlert('無法啟動相機，請確認是否已授權相機權限或使用 HTTPS 連線。', '相機錯誤', 'q3');
         readerDiv.style.display = 'none';
       }
     } else {
@@ -694,27 +744,29 @@
   async function saveMemberProfile() {
     if (!currentMember) return;
     if (currentMember.is_profile_updated === true) {
-      return alert('您已經修改過基本資料，無法再次變更！');
+      return showModalAlert('您已經修改過基本資料，無法再次變更！', '無法修改', 'q3');
     }
     let name = document.getElementById('editName').value.trim();
     let gender = document.getElementById('editGender').value;
     let birthdate = document.getElementById('editBirthdate').value;
-    if (!name) return alert('姓名不得為空！');
-    if (!confirm('基本資料僅能修改一次，送出後即無法再次變更且按鈕將消失，確認要送出嗎？')) return;
-    let res = await callApi('/api/member/update-profile', 'POST', {
-      memberId: currentMember.member_id,
-      name, gender, birthdate
-    });
-    alert(res.message);
-    if (res.success) {
-      currentMember.name = name;
-      currentMember.gender = gender;
-      currentMember.birthdate = birthdate;
-      currentMember.is_profile_updated = true;
-      document.getElementById('cardName').innerText = name;
-      document.getElementById('userInfoHeader').innerText = name;
-      loadProfileCenterData();
-    }
+    if (!name) return showModalAlert('姓名不得為空！', '欄位空白', 'q3');
+    
+    showModalConfirm('基本資料僅能修改一次，送出後即無法再次變更且按鈕將消失，確認要送出嗎？', async () => {
+      let res = await callApi('/api/member/update-profile', 'POST', {
+        memberId: currentMember.member_id,
+        name, gender, birthdate
+      });
+      showModalAlert(res.message, res.success ? '修改成功' : '修改失敗', res.success ? 'q2' : 'q3');
+      if (res.success) {
+        currentMember.name = name;
+        currentMember.gender = gender;
+        currentMember.birthdate = birthdate;
+        currentMember.is_profile_updated = true;
+        document.getElementById('cardName').innerText = name;
+        document.getElementById('userInfoHeader').innerText = name;
+        loadProfileCenterData();
+      }
+    }, '確認修改資料');
   }
   async function loadActivitiesData() {
     if (!currentMember) return;
@@ -813,13 +865,13 @@
   }
   async function redeemVirtualCode() {
     let code = document.getElementById('inputVirtualCode').value.trim();
-    if (!code) return alert('請輸入兌換序號！');
-    if (!currentMember) return alert('請先登入會員！');
+    if (!code) return showModalAlert('請輸入兌換序號！', '欄位空白', 'q3');
+    if (!currentMember) return showModalAlert('請先登入會員！', '尚未登入', 'q3');
     let res = await callApi('/api/member/redeem-virtual-code', 'POST', {
       memberId: currentMember.member_id,
       code: code
     });
-    alert(res.message);
+    showModalAlert(res.message, res.success ? '兌換成功' : '兌換失敗', res.success ? 'q2' : 'q3');
     if (res.success) {
       document.getElementById('inputVirtualCode').value = '';
       if (res.newPoints !== undefined) {
@@ -829,24 +881,24 @@
     }
   }
   async function participateLottery(eventId, costCoins, title) {
-    if (currentMember.available_coins < costCoins) return alert('拉咘幣不足！');
-    if (confirm(`確定消耗 ${costCoins} 幣參與「${title}」？`)) {
+    if (currentMember.available_coins < costCoins) return showModalAlert('拉咘幣不足！', '餘額不足', 'q3');
+    showModalConfirm(`確定消耗 ${costCoins} 幣參與「${title}」？`, async () => {
       let res = await callApi('/api/member/participate-lottery', 'POST', { memberId: currentMember.member_id, eventId });
-      alert(res.message);
+      showModalAlert(res.message, res.success ? '參與成功' : '參與失敗', res.success ? 'q2' : 'q3');
       if (res.success) {
         currentMember.available_coins = res.newPoints;
         document.getElementById('cardPoints').innerText = res.newPoints + ' 幣';
         loadActivitiesData();
       }
-    }
+    }, '確認參與抽獎');
   }
   async function placeBid(auctionId, minBid) {
     let bidVal = Number(document.getElementById('bidInput_' + auctionId).value);
-    if (bidVal < minBid) return alert(`出價必須 >= ${minBid} 幣`);
-    if (currentMember.available_coins < bidVal) return alert('可用拉咘幣不足！');
-    if (confirm(`確定出價 ${bidVal} 幣？（點數將暫時凍結）`)) {
+    if (bidVal < minBid) return showModalAlert(`出價必須 >= ${minBid} 幣`, '出價過低', 'q3');
+    if (currentMember.available_coins < bidVal) return showModalAlert('可用拉咘幣不足！', '餘額不足', 'q3');
+    showModalConfirm(`確定出價 ${bidVal} 幣？（點數將暫時凍結）`, async () => {
       let res = await callApi('/api/member/place-bid', 'POST', { memberId: currentMember.member_id, auctionId, bidAmount: bidVal });
-      alert(res.message);
+      showModalAlert(res.message, res.success ? '出價成功' : '出價失敗', res.success ? 'q2' : 'q3');
       if (res.success) {
         currentMember.available_coins = res.newPoints;
         currentMember.frozen_coins = res.newFrozen;
@@ -854,35 +906,35 @@
         document.getElementById('cardFrozen').innerText = '凍結中: ' + res.newFrozen + ' 幣';
         loadActivitiesData();
       }
-    }
+    }, '確認出價競標');
   }
   async function redeemProduct(productId, priceCoins, productName) {
-    if (currentMember.available_coins < priceCoins) return alert('拉咘幣不足！');
-    if (confirm(`確定消耗 ${priceCoins} 幣兌換「${productName}」？`)) {
+    if (currentMember.available_coins < priceCoins) return showModalAlert('拉咘幣不足！', '餘額不足', 'q3');
+    showModalConfirm(`確定消耗 ${priceCoins} 幣兌換「${productName}」？`, async () => {
       let res = await callApi('/api/member/redeem-product', 'POST', { memberId: currentMember.member_id, productId });
-      alert(res.message);
+      showModalAlert(res.message, res.success ? '兌換成功' : '兌換失敗', res.success ? 'q2' : 'q3');
       if (res.success) {
         currentMember.available_coins = res.newPoints;
         document.getElementById('cardPoints').innerText = res.newPoints + ' 幣';
         loadStoreProducts();
       }
-    }
+    }, '確認商品兌換');
   }
   async function login() {
     let phone = document.getElementById('loginPhone').value.trim(), password = document.getElementById('loginPwd').value;
-    if (!phone || !password) return alert('請輸入帳號密碼');
+    if (!phone || !password) return showModalAlert('請輸入帳號密碼', '欄位空白', 'q3');
     let res = await callApi('/api/member/login', 'POST', { phone, password });
     if (res.success) {
       localStorage.setItem('raibu_phone', phone); localStorage.setItem('raibu_pwd', password);
       showApp(res.member);
-    } else { alert(res.message); }
+    } else { showModalAlert(res.message, '登入失敗', 'q3'); }
   }
   async function register() {
-    if (!document.getElementById('chkTerms').checked) return alert('請先同意防範漏洞條款！');
+    if (!document.getElementById('chkTerms').checked) return showModalAlert('請先同意防範漏洞條款！', '條款未勾選', 'q3');
     let data = { name: document.getElementById('regName').value.trim(), phone: document.getElementById('regPhone').value.trim(), password: document.getElementById('regPwd').value, gender: document.getElementById('regGender').value, birthdate: document.getElementById('regBirthday').value };
-    if (!data.name || !data.phone || !data.password) return alert('請完整填寫註冊資料');
+    if (!data.name || !data.phone || !data.password) return showModalAlert('請完整填寫註冊資料', '欄位空白', 'q3');
     let res = await callApi('/api/member/register', 'POST', data);
-    alert(res.message);
+    showModalAlert(res.message, res.success ? '註冊成功' : '註冊失敗', res.success ? 'q2' : 'q3');
     if (res.success) { document.getElementById('loginPhone').value = data.phone; switchAuthTab('login'); }
   }
   function logout() {
@@ -910,7 +962,6 @@
     document.getElementById('cardPoints').innerText = (member.available_coins || 0) + ' 幣';
     document.getElementById('cardFrozen').innerText = '凍結中: ' + (member.frozen_coins || 0) + ' 幣';
     
-    // 初始化時間戳記基準
     await initSystemTimestamps();
     loadAnnouncements();
     loadActivitiesData();
