@@ -651,8 +651,10 @@
     if (!res.success || !res.products) return;
     rBox.innerHTML = ''; aBox.innerHTML = ''; cBox.innerHTML = '';
     let validProducts = res.products.filter(p => {
-      let status = String(p.status || '').trim();
-      return status === '' || status === '上架';
+let status = String(p.status || '').trim();
+  let stock = Number(p.remaining_stock) || 0;
+  // 必須是「上架」狀態，且「剩餘庫存大於 0」才會顯示在前台
+  return (status === '' || status === '上架') && stock > 0;
     });
     validProducts.sort(sortByCode('product_id'));
     validProducts.forEach(p => {
