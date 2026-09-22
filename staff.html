@@ -1987,6 +1987,23 @@
       toggleEditNotes();
     }
   }
+function switchLotterySubTab(subName, btnEl) {
+  document.querySelectorAll('#pageAdminLottery .sub-section').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('#lotterySubNav button').forEach(el => el.classList.remove('active'));
+  
+  let target = document.getElementById('subLottery' + subName);
+  if (target) target.classList.add('active');
+  if (btnEl) btnEl.classList.add('active');
+}
+
+function switchAuctionSubTab(subName, btnEl) {
+  document.querySelectorAll('#pageAdminAuction .sub-section').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('#auctionSubNav button').forEach(el => el.classList.remove('active'));
+  
+  let target = document.getElementById('subAuction' + subName);
+  if (target) target.classList.add('active');
+  if (btnEl) btnEl.classList.add('active');
+}
 </script>
 </body>
 </html>
