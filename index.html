@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>拉咘幣 O2O 會員中心</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- 引入 html5-qrcode 掃描套件 -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    :root {
+      --brand-blue: #032E5B;
+      --brand-accent: #ff9800;
+    }
+    body { 
+      background-color: #f4f6f9; 
+      padding-bottom: 90px; 
+      font-family: -apple-system, sans-serif; 
+      color: #333;
+    }
+    
+    /* 頂部導覽列精緻化 */
+    .top-header-bar {
+      background: white;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    /* 底部導覽列升級：與主色調一致、白字 */
+    .bottom-nav { 
+      position: fixed; 
+      bottom: 0;      /* 緊貼螢幕最底部 */
+      left: 0;        
+      right: 0;  
+      background: #032E5B; 
+      border-top: 1px solid rgba(255,255,255,0.15); 
+      z-index: 1000; 
+      height: 75px; 
+      border-radius: 20px 20px 0 0; /* 只有左上、右上是圓角，底部保持平整貼齊 */
+      box-shadow: 0 -4px 15px rgba(0,0,0,0.2);
+    }
+    .nav-item-btn { 
+      border: none; 
+      background: none; 
+      color: rgba(255, 255, 255, 0.7); 
+      padding: 6px 0; 
+      font-size: 0.85rem; 
+      flex: 1; 
+      height: 100%; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      justify-content: center; 
+      transition: all 0.2s;
+    }
+    .nav-item-btn.active { 
+      color: #ffffff; 
+      font-weight: bold; 
+    }
+    .nav-item-btn.active::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      width: 30px;
+      height: 3px;
+      background-color: #b8860b;
+      border-radius: 2px;
+    }
+    /* 導覽列圖示大小切換特效 */
+    .nav-item-btn img {
+      width: 60px;
+      height: 60px;
+      object-fit: contain;
+      margin-bottom: 2px;
+      transition: transform 0.2s ease;
+    }
+    .nav-item-btn.active img {
+      transform: scale(1.15);
+    }
+    /* 卡片與容器優化圓角與陰影 */
+    .card {
+      border: none !important;
+      border-radius: 16px !important;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.04) !important;
+      overflow: hidden;
+      margin-bottom: 15px;
+      background-color: #ffffff;
+      color: #333333;
+    }
+    .card-header {
+      background-color: #fff !important;
+      color: #032E5B !important;
+      border-bottom: 1px solid #f0f0f0 !important;
+      font-weight: bold;
+      padding: 12px 16px;
+    }
+    /* 會員卡片風格升級 (深藍底配白字) */
+    .card-member { 
+      background: linear-gradient(135deg, #032E5B, #0a4d8c); 
+      color: #ffffff !important; 
+      border-radius: 20px !important; 
+      box-shadow: 0 8px 25px rgba(3, 46, 91, 0.25) !important;
+    }
+    .card-member .text-muted {
+      color: rgba(255, 255, 255, 0.75) !important;
+    }
+    .terms-box { max-height: 180px; overflow-y: auto; background: #ffffff; border: 1px solid #dee2e6; padding: 10px; font-size: 0.85rem; border-radius: 6px; white-space: pre-wrap; color: #333; }
+    .page-section, .store-tab-content { display: none; }
+    .page-section.active, .store-tab-content.active { display: block; }
+    
+    .product-img { width: 75px; height: 75px; object-fit: cover; border-radius: 12px; background: #eee; }
+    .clickable-header { cursor: pointer; user-select: none; }
+    .clickable-header:hover { background-color: rgba(0,0,0,0.02); }
+    /* 登入註冊畫面風格 */
+    .auth-card {
+      border-radius: 24px 24px 0 0;
+      background: #ffffff;
+      min-height: 80vh;
+      box-shadow: 0 -5px 20px rgba(0,0,0,0.15);
+      position: relative;
+      color: #333;
+    }
+    .custom-input-group {
+      border: 1px solid #ced4da;
+      border-radius: 50px;
+      overflow: hidden;
+      background: #fff;
+      padding: 4px 12px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+    }
+    .custom-input-group input, .custom-input-group select {
+      border: none;
+      box-shadow: none;
+      outline: none;
+      width: 100%;
+      background: transparent;
+      padding: 8px;
+      font-size: 0.95rem;
+      color: #333;
+    }
+    .auth-tabs-custom {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      margin-bottom: 25px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+    }
+    .auth-tab-btn {
+      background: none;
+      border: none;
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #999;
+      position: relative;
+      padding-bottom: 5px;
+    }
+    .auth-tab-btn.active {
+      color: #032E5B;
+    }
+    .auth-tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -11px;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background-color: #b8860b;
+      border-radius: 2px;
+    }
+    .btn-main-action {
+      background-color: #032E5B;
+      color: #ffffff;
+      border-radius: 50px;
+      padding: 12px;
+      font-size: 1.05rem;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body style="background-color: #032E5B;" id="bodyTag">
+<!-- 頂部導覽列 (登入後顯示) -->
+<div id="topNavbarContainer" class="top-header-bar py-2 px-3 d-flex justify-content-between align-items-center" style="display: none !important;">
+  <span class="fw-bold fs-5" style="color: #032E5B;">🍜 拉咘拉咘會員</span>
+  <div>
+    <span id="userInfoHeader" class="badge bg-light text-dark px-2 py-1 border">未登入</span>
+    <button id="btnLogout" class="btn btn-outline-danger btn-sm ms-2 py-0" style="display: none;" onclick="logout()">登出</button>
+  </div>
+</div>
+<!-- 登入與註冊區塊 -->
+<div id="authSection" class="container-fluid px-0">
+  <div class="text-center pt-4 pb-3 position-relative">
+    <h3 class="fw-bold text-white mb-1">會員拉咘</h3>
+    <p class="text-white-50 small mb-1">— 會員中心與登入註冊 —</p>
+    <div class="text-warning small fw-bold">註冊即享拉咘會員專屬優惠</div>
+  </div>
+  <div class="auth-card p-4">
+    <div class="auth-tabs-custom" id="authTab">
+      <button class="auth-tab-btn active" onclick="switchAuthTab('login')">登入</button>
+      <button class="auth-tab-btn" onclick="switchAuthTab('register')">註冊</button>
+    </div>
+    <div id="loginForm">
+      <div class="custom-input-group">
+        <input type="tel" id="loginPhone" placeholder="請輸入手機號碼 (09xxxxxxxx)">
+      </div>
+      <div class="custom-input-group">
+        <input type="password" id="loginPwd" placeholder="請輸入密碼">
+      </div>
+      <button class="btn w-100 fw-bold btn-main-action mt-3 shadow-sm" onclick="login()">立即登入</button>
+      
+      <!-- 分享給好友按鈕 -->
+      <button class="btn w-100 fw-bold mt-2 rounded-pill py-2 shadow-sm" onclick="shareToFriends()" style="border: 2px solid #032E5B; color: #032E5B; background-color: #fff;">
+        📤 分享拉咘會員給好友
+      </button>
+    </div>
+    <div id="registerForm" style="display: none;">
+      <div class="custom-input-group"><input type="text" id="regName" placeholder="請輸入姓名 / 暱稱"></div>
+      <div class="custom-input-group"><input type="tel" id="regPhone" placeholder="手機號碼 (09xxxxxxxx)"></div>
+      <div class="custom-input-group"><input type="password" id="regPwd" placeholder="設定登入密碼"></div>
+      <div class="row g-2">
+        <div class="col-6"><div class="custom-input-group"><select id="regGender"><option value="男">男</option><option value="女">女</option><option value="其他">其他</option></select></div></div>
+        <div class="col-6"><div class="custom-input-group"><input type="date" id="regBirthday"></div></div>
+      </div>
+      <label class="form-label small fw-bold text-secondary mt-1">服務條款與使用規則</label>
+      <div id="termsContainer" class="terms-box mb-2">正在載入防範漏洞條款...</div>
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" id="chkTerms">
+        <label class="form-check-label small fw-bold text-danger" for="chkTerms">我已閱讀並同意上述使用規則</label>
+      </div>
+      <button class="btn w-100 fw-bold btn-main-action shadow-sm" onclick="register()">完成註冊</button>
+    </div>
+    <div class="d-flex justify-content-center align-items-center gap-1 mt-1 pt-1 px-1">
+      <img src="https://xevxgbfamlrrylqkewlw.supabase.co/storage/v1/object/public/labulabu/openpage2.png" alt="扭蛋貓" style="width: 250px; height: 160px; object-fit: contain;">
+    </div>
+  </div>
+</div>
+  
+<!-- 主畫面 (登入後顯示) -->
+<div class="container py-3">
+  <div id="appSection" style="display: none;">
+    <div class="card card-member p-4 shadow mb-3">
+      <div class="d-flex justify-content-between align-items-center">
+        <span id="cardVip" class="badge bg-light text-dark px-3 py-1 rounded-pill fw-bold">VIP會員</span>
+        <span id="cardId" class="small text-white-50 font-monospace">M00000</span>
+      </div>
+      <div class="my-3 text-white">
+        <small class="d-block text-white-50 mb-1">可用拉咘幣</small>
+        <h1 id="cardPoints" class="fw-bold m-0 display-5 text-white">0 <span class="fs-6 text-white-50">幣</span></h1>
+      </div>
+      <div class="d-flex justify-content-between align-items-center small text-white pt-2 border-top border-light border-opacity-25">
+        <div>👤 <span id="cardName">會員</span> (<span id="cardPhone">09xxxxxxxx</span>)</div>
+        <span id="cardFrozen" class="badge bg-dark bg-opacity-25 text-white px-2 py-1">凍結中: 0 幣</span>
+      </div>
+    </div>
+    
+    <!-- 首頁：布告欄 -->
+    <div id="pageHome" class="page-section active">
+      <div class="card shadow-sm mb-3">
+        <div class="card-header fw-bold d-flex align-items-center" style="color: #032E5B;">
+          <span class="me-2">📢</span> 最新消息
+        </div>
+        <div class="card-body p-2" id="announcementArea"><div class="text-muted text-center py-2">載入中...</div></div>
+      </div>
+    </div>
+    
+    <!-- 商城 -->
+    <div id="pageStore" class="page-section">
+      <ul class="nav nav-pills nav-justified mb-3 bg-white p-2 shadow-sm rounded-pill" id="storeTabs">
+        <li class="nav-item"><button class="nav-link active fw-bold rounded-pill text-white" style="background-color: #032E5B;" onclick="switchStoreTab('Redeem', this)">兌換商品</button></li>
+        <li class="nav-item"><button class="nav-link fw-bold rounded-pill text-dark" onclick="switchStoreTab('Addon', this)">加購商品</button></li>
+        <li class="nav-item"><button class="nav-link fw-bold rounded-pill text-dark" onclick="switchStoreTab('Catalog', this)">商品目錄</button></li>
+      </ul>
+      <div id="tabRedeem" class="store-tab-content active"><div id="listRedeem" class="row g-2"><div class="text-muted text-center py-3">載入中...</div></div></div>
+      <div id="tabAddon" class="store-tab-content"><div id="listAddon" class="row g-2"><div class="text-muted text-center py-3">載入中...</div></div></div>
+      <div id="tabCatalog" class="store-tab-content">
+        <div class="alert alert-secondary py-2 small text-center rounded-3 text-dark">💡 此區商品為現場實體目錄展示，請直接至門市購買。</div>
+        <div id="listCatalog" class="row g-2"><div class="text-muted text-center py-3">載入中...</div></div>
+      </div>
+    </div>
+    
+    <!-- 精選行銷活動頁面 (抽獎與拍賣與序號兌換) -->
+    <div id="pageEvents" class="page-section">
+      <div class="card shadow-sm mb-3">
+        <div class="card-header text-white fw-bold d-flex align-items-center" style="background-color: #032E5B;">
+          <span class="me-2">🎁</span> 序號兌換
+        </div>
+        <div class="card-body p-3">
+          <!-- 💡 讓輸入框與兩個按鈕在同一行 -->
+          <div class="input-group">
+            <input type="text" id="inputVirtualCode" class="form-control ps-3" placeholder="請輸入或掃描序號">
+            <button class="btn text-white fw-bold px-3" style="background-color: #032E5B;" onclick="redeemVirtualCode()">確認兌換</button>
+            <button class="btn btn-outline-dark fw-bold px-3" onclick="toggleQrScanner()">掃描QRcode</button>
+          </div>
+
+          <div id="qr-reader" style="width: 100%; display: none;" class="mt-3"></div>
+          <div id="qr-reader-results" class="text-center small text-muted mt-1"></div>
+        </div>
+      </div>
+      <ul class="nav nav-pills nav-justified mb-3 bg-white p-2 shadow-sm rounded-pill" id="eventSubTabs">
+        <li class="nav-item"><button class="nav-link active fw-bold rounded-pill text-white" style="background-color: #d9534f;" onclick="switchEventTab('Lottery', this)">🎲 幸運抽獎專區</button></li>
+        <li class="nav-item"><button class="nav-link fw-bold rounded-pill text-dark bg-light" onclick="switchEventTab('Auction', this)">⚖️ 點數競拍專區</button></li>
+      </ul>
+      <!-- 抽獎子分頁 -->
+      <div id="subTabLottery" class="event-sub-content">
+        <div class="card shadow-sm mb-3">
+          <div class="card-header bg-white fw-bold" style="color: #032E5B;">🎲 進行中的幸運抽獎</div>
+          <div class="card-body p-2" id="lotteryArea"><div class="text-muted text-center py-3">載入中...</div></div>
+        </div>
+        <div class="card shadow-sm mb-3">
+          <div class="card-header text-white fw-bold" style="background-color: #032E5B;">🎟️ 我的抽獎參與紀錄</div>
+          <div class="card-body p-2" style="max-height: 220px; overflow-y: auto;">
+            <ul id="myLotteryLogsArea" class="list-group list-group-flush small"><li class="list-group-item text-center text-muted">載入中...</li></ul>
+          </div>
+        </div>
+      </div>
+      <!-- 拍賣子分頁 -->
+      <div id="subTabAuction" class="event-sub-content" style="display: none;">
+        <div class="card shadow-sm mb-3">
+          <div class="card-header text-white fw-bold" style="background-color: #212529;">⚖️ 進行中的競標拍賣</div>
+          <div class="card-body p-2" id="auctionArea"><div class="text-muted text-center py-3">載入中...</div></div>
+        </div>
+        <div class="card shadow-sm mb-3">
+          <div class="card-header text-white fw-bold" style="background-color: #6c757d;">📜 我的拍賣出價紀錄</div>
+          <div class="card-body p-2" style="max-height: 220px; overflow-y: auto;">
+            <ul id="myAuctionLogsArea" class="list-group list-group-flush small"><li class="list-group-item text-center text-muted">載入中...</li></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 會員中心 -->
+    <div id="pageProfile" class="page-section">
+      <!-- 1. 修改基本資料按鈕與收縮區塊 -->
+      <div id="profileUpdateSection" class="card shadow-sm mb-3 border border-warning-subtle">
+        <div class="card-body p-2 text-center">
+          <button id="btnToggleProfileForm" class="btn btn-warning text-dark fw-bold btn-sm w-100 rounded-pill py-2 shadow-sm" onclick="toggleProfileForm()">✏️ 修改基本資料（僅限一次）</button>
+        </div>
+        <div id="profileFormContainer" class="card-body border-top pt-2" style="display: none;">
+          <div class="alert alert-secondary py-1 small mb-2 rounded-3 text-dark">💡 提醒：基本資料僅能修改一次，送出後即無法再次變更，且按鈕會永久消失。</div>
+          <div class="mb-2">
+            <label class="form-label small fw-bold text-dark">姓名</label>
+            <input type="text" id="editName" class="form-control form-control-sm rounded-3 text-dark" placeholder="請輸入姓名">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-bold text-dark">性別</label>
+            <select id="editGender" class="form-select form-select-sm rounded-3 text-dark">
+              <option value="男">男</option>
+              <option value="女">女</option>
+              <option value="其他">其他</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-dark">生日</label>
+            <input type="date" id="editBirthdate" class="form-control form-control-sm rounded-3 text-dark">
+          </div>
+          <button class="btn btn-warning w-100 text-dark fw-bold btn-sm rounded-pill shadow-sm" onclick="saveMemberProfile()">確認送出修改</button>
+        </div>
+      </div>
+      <!-- 2. 未核銷兌換券 -->
+      <div class="card shadow-sm mb-3">
+        <div class="card-header text-white fw-bold" style="background-color: #032E5B;">🎟️ 可使用兌換券</div>
+        <div class="card-body p-2" style="max-height: 220px; overflow-y: auto;">
+          <div id="unverifiedCouponsArea"><div class="text-muted text-center py-2 small">載入中...</div></div>
+        </div>
+      </div>
+      <!-- 3. 已核銷兌換券 (可收縮) -->
+      <div class="card shadow-sm mb-3">
+        <div class="card-header text-white fw-bold clickable-header d-flex justify-content-between align-items-center" style="background-color: #6c757d;" onclick="toggleCollapse('verifiedCouponsBody', this)">
+          <span>🎫 已核銷歷史券</span><span>▼</span>
+        </div>
+        <div class="card-body p-2" id="verifiedCouponsBody" style="max-height: 200px; overflow-y: auto; display: none;">
+          <div id="verifiedCouponsArea"><div class="text-muted text-center py-2 small">無已核銷歷史券</div></div>
+        </div>
+      </div>
+      <!-- 4. 點數異動明細 (可收縮) -->
+      <div class="card shadow-sm mb-3">
+        <div class="card-header text-white fw-bold clickable-header d-flex justify-content-between align-items-center" style="background-color: #212529;" onclick="toggleCollapse('myLogsBody', this)">
+          <span>📜 點數異動明細</span><span>▼</span>
+        </div>
+        <div class="card-body p-2" id="myLogsBody">
+          <ul id="myLogsArea" class="list-group list-group-flush small" style="max-height: 220px; overflow-y: auto;"><li class="list-group-item text-center text-muted">載入中...</li></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- 底部導覽列 -->
+<div id="bottomNav" class="bottom-nav d-none justify-around text-center align-items-center">
+  <button class="nav-item-btn active" onclick="navTo('Home', this)">
+    <img src="https://xevxgbfamlrrylqkewlw.supabase.co/storage/v1/object/public/labulabu/btn1.png" alt="首頁">
+  </button>
+  <button class="nav-item-btn" onclick="navTo('Store', this)">
+    <img src="https://xevxgbfamlrrylqkewlw.supabase.co/storage/v1/object/public/labulabu/btn2.png" alt="商城">
+  </button>
+  <button class="nav-item-btn" onclick="navTo('Events', this)">
+    <img src="https://xevxgbfamlrrylqkewlw.supabase.co/storage/v1/object/public/labulabu/btn3.png" alt="活動">
+  </button>
+  <button class="nav-item-btn" onclick="navTo('Profile', this)" id="navProfileBtn">
+    <img src="https://xevxgbfamlrrylqkewlw.supabase.co/storage/v1/object/public/labulabu/btn4.png" alt="會員中心">
+  </button>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  const API_BASE = 'https://labulabu.kingbestow1116.workers.dev';
+  let currentMember = null;
+  let html5QrCode = null;
+  let isScannerRunning = false;
+
+  async function callApi(endpoint, method = 'GET', data = null) {
+    const options = { method, headers: { 'Content-Type': 'application/json' } };
+    if (data) options.body = JSON.stringify(data);
+    try {
+      const res = await fetch(`${API_BASE}${endpoint}`, options);
+      return await res.json();
+    } catch (err) {
+      console.error('API 呼叫失敗:', err);
+      return { success: false, message: '網路連線異常' };
+    }
+  }
+  function sortByCode(key) {
+    return function(a, b) {
+      let idA = String(a[key] || '').trim();
+      let idB = String(b[key] || '').trim();
+      return idA.localeCompare(idB, 'en', { numeric: true });
+    };
+  }
+  async function loadPreventionTerms() {
+    let res = await callApi('/api/get-setting?key=防範漏洞條款內文');
+    let termsBox = document.getElementById('termsContainer');
+    if (res.success && res.value) {
+      termsBox.innerText = res.value;
+    } else {
+      termsBox.innerText = '歡迎使用拉咘幣 O2O 會員系統，請遵守各項點數使用與消費規範。';
+    }
+  }
+  window.onload = function() {
+    loadStoreProducts();
+    loadPreventionTerms();
+    let phone = localStorage.getItem('raibu_phone'), pwd = localStorage.getItem('raibu_pwd');
+    if (phone && pwd) {
+      callApi('/api/member/login', 'POST', { phone, password: pwd }).then(r => {
+        if (r.success) { showApp(r.member); }
+        else { localStorage.removeItem('raibu_phone'); localStorage.removeItem('raibu_pwd'); }
+      });
+    }
+    // 監聽分頁切換事件（Visibility API）
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState === 'visible' && currentMember) {
+        try {
+          const res = await callApi('/api/system-timestamps');
+          if (res.success && res.timestamps) {
+            const serverTs = res.timestamps;
+            
+            // 1. 檢查商品有無更新
+            if (serverTs.product_updated_at !== localStorage.getItem('product_updated_at')) {
+              console.log('偵測到商品有更新，自動重新載入...');
+              loadStoreProducts();
+              localStorage.setItem('product_updated_at', serverTs.product_updated_at);
+            }
+            
+            // 2. 檢查抽獎有無更新
+            if (serverTs.lottery_updated_at !== localStorage.getItem('lottery_updated_at')) {
+              console.log('偵測到抽獎活動有更新，自動重新載入...');
+              loadActivitiesData();
+              localStorage.setItem('lottery_updated_at', serverTs.lottery_updated_at);
+            }
+            
+            // 3. 檢查拍賣有無更新
+            if (serverTs.auction_updated_at !== localStorage.getItem('auction_updated_at')) {
+              console.log('偵測到拍賣活動有更新，自動重新載入...');
+              loadActivitiesData();
+              localStorage.setItem('auction_updated_at', serverTs.auction_updated_at);
+            }
+            
+            // 4. 檢查公告有無更新
+            if (serverTs.announcement_updated_at !== localStorage.getItem('announcement_updated_at')) {
+              console.log('偵測到公告有更新，自動重新載入...');
+              loadAnnouncements();
+              localStorage.setItem('announcement_updated_at', serverTs.announcement_updated_at);
+            }
+          }
+        } catch (e) {
+          console.error('背景檢查時間戳記失敗', e);
+        }
+      }
+    });
+  };
+
+  // 初始化時間戳記的函式
+  async function initSystemTimestamps() {
+    let res = await callApi('/api/system-timestamps');
+    if (res.success && res.timestamps) {
+      localStorage.setItem('product_updated_at', res.timestamps.product_updated_at || '0');
+      localStorage.setItem('lottery_updated_at', res.timestamps.lottery_updated_at || '0');
+      localStorage.setItem('auction_updated_at', res.timestamps.auction_updated_at || '0');
+      localStorage.setItem('announcement_updated_at', res.timestamps.announcement_updated_at || '0');
+    }
+  }
+
+  // 分享給好友功能
+  async function shareToFriends() {
+    const shareData = {
+      title: '拉咘幣 O2O 會員中心',
+      text: '快來加入拉咘拉佈會員，累積拉咘幣兌換超值好禮與參與精彩抽獎！',
+      url: window.location.href
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        alert('已成功複製會員中心連結，快去貼給好友吧！');
+      }
+    } catch (err) {
+      console.log('分享取消或失敗', err);
+    }
+  }
+
+  // 💡 【新增】控制相機掃描 QR Code 的開關與邏輯
+  async function toggleQrScanner() {
+    const readerDiv = document.getElementById('qr-reader');
+    const resultDiv = document.getElementById('qr-reader-results');
+
+    if (!isScannerRunning) {
+      readerDiv.style.display = 'block';
+      if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode("qr-reader");
+      }
+      
+      try {
+        await html5QrCode.start(
+          { facingMode: "environment" }, // 優先使用後鏡頭
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          async (decodedText, decodedResult) => {
+            // 掃描成功回調
+            document.getElementById('inputVirtualCode').value = decodedText;
+            resultDiv.innerText = `成功讀取序號: ${decodedText}`;
+            await stopQrScanner();
+            // 自動觸發兌換
+            redeemVirtualCode();
+          },
+          (errorMessage) => {
+            // 掃描中（未對準時的每幀錯誤可忽略）
+          }
+        );
+        isScannerRunning = true;
+      } catch (err) {
+        console.error("無法啟動相機:", err);
+        alert('無法啟動相機，請確認是否已授權相機權限或使用 HTTPS 連線。');
+        readerDiv.style.display = 'none';
+      }
+    } else {
+      await stopQrScanner();
+    }
+  }
+
+  async function stopQrScanner() {
+    if (html5QrCode && isScannerRunning) {
+      try {
+        await html5QrCode.stop();
+        html5QrCode.clear();
+      } catch (e) {
+        console.error('停止相機失敗', e);
+      }
+      isScannerRunning = false;
+      document.getElementById('qr-reader').style.display = 'none';
+    }
+  }
+
+  function toggleCollapse(id, header) {
+    let b = document.getElementById(id), a = header.querySelector('span:last-child');
+    b.style.display = b.style.display === 'none' ? 'block' : 'none';
+    a.innerText = b.style.display === 'none' ? '▲' : '▼';
+  }
+  function toggleProfileForm() {
+    let formContainer = document.getElementById('profileFormContainer');
+    formContainer.style.display = formContainer.style.display === 'none' ? 'block' : 'none';
+  }
+  async function loadAnnouncements() {
+    let annArea = document.getElementById('announcementArea');
+    annArea.innerHTML = '<div class="text-muted text-center py-2">載入公告中...</div>';
+    let res = await callApi('/api/announcements');
+    if (!res.success || !res.announcements) {
+      annArea.innerHTML = '<div class="text-muted text-center py-2">目前無最新公告</div>';
+      return;
+    }
+    let validAnnouncements = res.announcements.filter(a => {
+      let status = String(a.status || a.display_status || '').trim();
+      return status !== '隱藏';
+    });
+    if (validAnnouncements.length === 0) {
+      annArea.innerHTML = '<div class="text-muted text-center py-2">目前無最新公告</div>';
+      return;
+    }
+    annArea.innerHTML = '';
+    validAnnouncements.forEach(a => {
+      let img = a.image_id ? `<img src="${a.image_id}" class="img-fluid rounded-3 mb-2 shadow-sm" style="max-height:180px; object-fit:cover; width:100%;">` : '';
+      annArea.innerHTML += `<div class="p-3 border-bottom">${img}<div class="mb-1"><span class="badge text-white me-2" style="background-color: #032E5B;">${a.category || '公告'}</span><strong class="text-dark">${a.title}</strong></div><p class="small text-secondary mb-0 mt-1">${a.content}</p></div>`;
+    });
+  }
+  async function loadStoreProducts() {
+    let res = await callApi('/api/products');
+    let rBox = document.getElementById('listRedeem'), aBox = document.getElementById('listAddon'), cBox = document.getElementById('listCatalog');
+    if (!res.success || !res.products) return;
+    rBox.innerHTML = ''; aBox.innerHTML = ''; cBox.innerHTML = '';
+    let validProducts = res.products.filter(p => {
+      let status = String(p.status || '').trim();
+      return status === '' || status === '上架';
+    });
+    validProducts.sort(sortByCode('product_id'));
+    validProducts.forEach(p => {
+      let img = p.image_id ? `<img src="${p.image_id}" class="product-img me-3">` : '<div class="product-img me-3 bg-light"></div>';
+      if (p.price_coins > 0 && p.add_amount === 0) {
+        rBox.innerHTML += `<div class="col-12"><div class="card border p-2 d-flex flex-row justify-content-between align-items-center shadow-sm"><div class="d-flex align-items-center">${img}<div><h6 class="fw-bold mb-1 text-dark">${p.name}</h6><div class="small text-danger fw-bold">所需: ${p.price_coins} 幣 | 庫存: ${p.remaining_stock}</div></div></div><button class="btn btn-sm text-white fw-bold px-3 rounded-pill" style="background-color: #032E5B;" onclick="redeemProduct('${p.product_id}', ${p.price_coins}, '${p.name}')">兌換</button></div></div>`;
+      } else if (p.price_coins > 0 && p.add_amount > 0) {
+        aBox.innerHTML += `<div class="col-12"><div class="card border p-2 d-flex flex-row justify-content-between align-items-center shadow-sm"><div class="d-flex align-items-center">${img}<div><h6 class="fw-bold mb-1 text-dark">${p.name}</h6><div class="small text-danger fw-bold">所需: ${p.price_coins} 幣 + $${p.add_amount}</div></div></div><button class="btn btn-sm text-white fw-bold px-3 rounded-pill" style="background-color: #ff9800;" onclick="redeemProduct('${p.product_id}', ${p.price_coins}, '${p.name}')">加購</button></div></div>`;
+      } else {
+        cBox.innerHTML += `<div class="col-12"><div class="card border p-2 d-flex flex-row justify-content-between align-items-center bg-light shadow-sm"><div class="d-flex align-items-center">${img}<div><h6 class="fw-bold mb-1 text-dark">${p.name}</h6><div class="small text-success fw-bold">售價: $${p.add_amount}</div></div></div><span class="badge bg-secondary rounded-pill text-white">僅限現場購買</span></div></div>`;
+      }
+    });
+  }
+  async function loadProfileCenterData() {
+    if (!currentMember) return;
+    let mRes = await callApi('/api/members');
+    if (mRes.success && mRes.members) {
+      let fresh = mRes.members.find(m => m.member_id === currentMember.member_id);
+      if (fresh) currentMember = fresh;
+    }
+    let updateSection = document.getElementById('profileUpdateSection');
+    if (currentMember.is_profile_updated === true) {
+      updateSection.style.display = 'none';
+    } else {
+      updateSection.style.display = 'block';
+      document.getElementById('editName').value = currentMember.name || '';
+      document.getElementById('editGender').value = currentMember.gender || '男';
+      document.getElementById('editBirthdate').value = currentMember.birthdate ? currentMember.birthdate.substring(0, 10) : '';
+      document.getElementById('profileFormContainer').style.display = 'none';
+    }
+    let cRes = await callApi('/api/coupons');
+    let unverifiedArea = document.getElementById('unverifiedCouponsArea');
+    let verifiedArea = document.getElementById('verifiedCouponsArea');
+    unverifiedArea.innerHTML = '';
+    verifiedArea.innerHTML = '';
+    if (cRes.success && cRes.coupons) {
+      let myCoupons = cRes.coupons.filter(c => c.member_id === currentMember.member_id);
+      myCoupons.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      let unvCount = 0, verCount = 0;
+      myCoupons.forEach(c => {
+        let isVerified = String(c.status).trim() === '已核銷';
+        let timeStr = c.created_at ? c.created_at.replace('T', ' ').substring(0, 16) : '';
+        let addText = (Number(c.add_amount) > 0) ? ` <span class="text-danger fw-bold">需加購金: $${c.add_amount}</span>` : '';
+        let rowHtml = `<div class="p-2 border-bottom d-flex justify-content-between align-items-center text-truncate small">
+          <div class="text-truncate me-2"><strong class="text-dark">${c.title || '優惠券'}</strong>${addText}<span class="text-muted d-block" style="font-size:0.7rem;">時間: ${timeStr}</span></div>
+          <span class="badge ${isVerified ? 'bg-secondary' : 'bg-success'} text-white text-nowrap rounded-pill">${c.status || '未核銷'}</span>
+        </div>`;
+        if (isVerified) {
+          verifiedArea.innerHTML += rowHtml;
+          verCount++;
+        } else {
+          unverifiedArea.innerHTML += rowHtml;
+          unvCount++;
+        }
+      });
+      if (unvCount === 0) unverifiedArea.innerHTML = '<div class="text-muted text-center py-2 small">無未核銷優惠券</div>';
+      if (verCount === 0) verifiedArea.innerHTML = '<div class="text-muted text-center py-2 small">無已核銷歷史券</div>';
+    } else {
+      unverifiedArea.innerHTML = '<div class="text-muted text-center py-2 small">無優惠券資料</div>';
+      verifiedArea.innerHTML = '<div class="text-muted text-center py-2 small">無已核銷歷史券</div>';
+    }
+    let logRes = await callApi('/api/point_logs');
+    let logArea = document.getElementById('myLogsArea');
+    logArea.innerHTML = '';
+    if (logRes.success && logRes.point_logs) {
+      let myLogs = logRes.point_logs.filter(l => l.member_id === currentMember.member_id);
+      myLogs.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      if (myLogs.length === 0) {
+        logArea.innerHTML = '<li class="list-group-item text-center text-muted small">無點數異動紀錄</li>';
+      } else {
+        myLogs.forEach(l => {
+          let timeStr = l.created_at ? l.created_at.replace('T', ' ').substring(0, 16) : '';
+          let amt = Number(l.change_amount) || 0;
+          let colorClass = amt >= 0 ? 'text-success' : 'text-danger';
+          logArea.innerHTML += `<li class="list-group-item d-flex justify-content-between align-items-center py-2 px-2">
+            <div><small class="text-muted">${timeStr}</small> - <strong class="text-dark">${l.type}</strong><div class="text-secondary" style="font-size:0.75rem;">${l.description || ''}</div></div>
+            <span class="fw-bold ${colorClass}">${amt >= 0 ? '+' + amt : amt} 幣</span>
+          </li>`;
+        });
+      }
+    } else {
+      logArea.innerHTML = '<li class="list-group-item text-center text-muted small">無點數異動紀錄</li>';
+    }
+  }
+  async function saveMemberProfile() {
+    if (!currentMember) return;
+    if (currentMember.is_profile_updated === true) {
+      return alert('您已經修改過基本資料，無法再次變更！');
+    }
+    let name = document.getElementById('editName').value.trim();
+    let gender = document.getElementById('editGender').value;
+    let birthdate = document.getElementById('editBirthdate').value;
+    if (!name) return alert('姓名不得為空！');
+    if (!confirm('基本資料僅能修改一次，送出後即無法再次變更且按鈕將消失，確認要送出嗎？')) return;
+    let res = await callApi('/api/member/update-profile', 'POST', {
+      memberId: currentMember.member_id,
+      name, gender, birthdate
+    });
+    alert(res.message);
+    if (res.success) {
+      currentMember.name = name;
+      currentMember.gender = gender;
+      currentMember.birthdate = birthdate;
+      currentMember.is_profile_updated = true;
+      document.getElementById('cardName').innerText = name;
+      document.getElementById('userInfoHeader').innerText = name;
+      loadProfileCenterData();
+    }
+  }
+  async function loadActivitiesData() {
+    if (!currentMember) return;
+    let lRes = await callApi('/api/lottery_events');
+    let rRes = await callApi('/api/lottery_records');
+    let lotArea = document.getElementById('lotteryArea');
+    let myLotteryLogsArea = document.getElementById('myLotteryLogsArea');
+    lotArea.innerHTML = ''; myLotteryLogsArea.innerHTML = '';
+    let lotteryMap = {};
+    if (lRes.success && lRes.lottery_events) {
+      lRes.lottery_events.forEach(l => { lotteryMap[l.event_id] = l; });
+      let nowTime = new Date().getTime();
+      let active = lRes.lottery_events.filter(l => {
+        let isRunning = String(l.status).includes('進行中');
+        if (!isRunning) return false;
+        if (l.start_time) {
+          let startTime = new Date(l.start_time).getTime();
+          if (nowTime < startTime) return false;
+        }
+        return true;
+      });
+      active.sort(sortByCode('event_id'));
+      let userRecs = (rRes.success && rRes.lottery_records) ? rRes.lottery_records.filter(r => r.member_id === currentMember.member_id) : [];
+      if (active.length === 0) lotArea.innerHTML = '<div class="text-muted text-center py-3">目前無進行中的抽獎活動</div>';
+      else {
+        active.forEach(l => {
+          let count = userRecs.filter(r => r.event_id === l.event_id).length;
+          let limit = Number(l.per_user_limit) || 1;
+          let isMax = (limit !== -1 && count >= limit);
+          let img = l.image_id ? `<img src="${l.image_id}" class="img-fluid rounded-3 mb-2" style="max-height:150px; object-fit:cover; width:100%;">` : '';
+          let btn = isMax 
+            ? `<button class="btn btn-secondary btn-sm text-white fw-bold w-100 rounded-pill" disabled>參與中 (預計 ${l.end_time ? l.end_time.substring(0,10) : '結束'} 開獎)</button>`
+            : `<button class="btn btn-danger btn-sm text-white fw-bold w-100 rounded-pill shadow-sm" onclick="participateLottery('${l.event_id}', ${l.cost_coins}, '${l.title}')">🎟️ 我要抽獎 (${l.cost_coins} 幣)</button>`;
+          lotArea.innerHTML += `<div class="card border mb-2 p-3 shadow-sm">${img}<div class="d-flex justify-content-between align-items-center"><h6 class="fw-bold mb-1 text-danger">${l.title}</h6><span class="badge bg-danger text-white rounded-pill">需 ${l.cost_coins} 幣</span></div><p class="small text-muted mb-1">${l.rules || ''}</p><div class="small text-secondary mb-2">🎯 名額: ${l.winner_quota} 名 | 已參加: ${count}/${limit === -1 ? '無限' : limit} 次</div>${btn}</div>`;
+        });
+      }
+    }
+    if (rRes.success && rRes.lottery_records) {
+      let myRecs = rRes.lottery_records.filter(r => r.member_id === currentMember.member_id);
+      if (myRecs.length === 0) myLotteryLogsArea.innerHTML = '<li class="list-group-item text-center text-muted small">無抽獎紀錄</li>';
+      else {
+        myRecs.forEach(ll => {
+          let lotInfo = lotteryMap[ll.event_id] || {};
+          let title = lotInfo.title || ll.event_id;
+          let desc = lotInfo.rules || lotInfo.description || '抽獎活動';
+          let color = ll.win_status === '中獎' ? 'bg-success' : (ll.win_status === '未中獎' ? 'bg-secondary' : 'bg-warning text-dark');
+          myLotteryLogsArea.innerHTML += `<li class="list-group-item d-flex justify-content-between align-items-center py-2 px-2"><div class="me-2 text-truncate"><strong class="text-dark d-block">${title}</strong><small class="text-muted text-truncate d-block" style="font-size:0.75rem; max-width: 180px;">${desc}</small><span class="text-muted" style="font-size:0.7rem;">${ll.participated_at ? ll.participated_at.replace('T', ' ').substring(0,19) : ''}</span></div><div class="text-end text-nowrap"><span class="badge ${color} text-white rounded-pill">${ll.win_status}</span><div class="text-danger small">(-${ll.coins_consumed}幣)</div></div></li>`;
+        });
+      }
+    }
+    
+    let aRes = await callApi('/api/auctions?client=true');
+    let bRes = await callApi('/api/auction_bids');
+    let aucArea = document.getElementById('auctionArea');
+    let myAuctionLogsArea = document.getElementById('myAuctionLogsArea');
+    aucArea.innerHTML = ''; myAuctionLogsArea.innerHTML = '';
+    let auctionMap = {};
+    if (aRes.success && aRes.auctions) {
+      aRes.auctions.forEach(a => { auctionMap[a.auction_id] = a; });
+      let nowTime = new Date().getTime();
+      let activeAuc = aRes.auctions.filter(a => {
+        if (a.display_status === '隱藏') return false;
+        if (!String(a.status).includes('進行中')) return false;
+        if (a.start_time) {
+          let startTime = new Date(a.start_time).getTime();
+          if (nowTime < startTime) return false;
+        }
+        return true;
+      });
+      activeAuc.sort(sortByCode('auction_id'));
+      if (activeAuc.length === 0) aucArea.innerHTML = '<div class="text-muted text-center py-3">目前無進行中的拍賣活動</div>';
+      else {
+        activeAuc.forEach(a => {
+          let img = a.image_id ? `<img src="${a.image_id}" class="img-fluid rounded-3 mb-2" style="max-height:150px; object-fit:cover; width:100%;">` : '';
+          let curPrice = Number(a.current_price) || 0;
+          let minBid = curPrice > 0 ? curPrice + Number(a.min_increment) : Number(a.start_price);
+          let isLead = a.highest_bidder_id === currentMember.member_id;
+          let inputHtml = isLead ? '<div class="alert alert-success py-1 small text-center mb-0 rounded-3 text-dark">👑 您目前最高出價領先中</div>' : `<div class="input-group input-group-sm"><input type="number" id="bidInput_${a.auction_id}" class="form-control text-dark" value="${minBid}"><button class="btn btn-dark text-white fw-bold px-3" onclick="placeBid('${a.auction_id}', ${minBid})">🔨 確認出價</button></div>`;
+          aucArea.innerHTML += `<div class="card border mb-2 p-3 shadow-sm">${img}<div class="d-flex justify-content-between align-items-center"><h6 class="fw-bold mb-1 text-dark">${a.title}</h6><span class="badge bg-success text-white rounded-pill">起標: ${a.start_price} 幣</span></div><p class="small text-muted mb-1">${a.description || ''}</p><div class="small text-danger fw-bold mb-2">🔥 最高出價: ${curPrice > 0 ? curPrice : '無人出價'} 幣<br>⚡ 最低門檻: ${minBid} 幣</div>${inputHtml}</div>`;
+        });
+      }
+    }
+    if (bRes.success && bRes.auction_bids) {
+      let myBids = bRes.auction_bids.filter(b => b.member_id === currentMember.member_id);
+      if (myBids.length === 0) myAuctionLogsArea.innerHTML = '<li class="list-group-item text-center text-muted small">無拍賣紀錄</li>';
+      else {
+        myBids.forEach(al => {
+          let aucInfo = auctionMap[al.auction_id] || {};
+          let title = aucInfo.title || al.auction_id;
+          let desc = aucInfo.description || '拍賣商品';
+          let color = al.bid_status === '得標' ? 'bg-success' : (al.bid_status === '未得標-已退還' ? 'bg-secondary' : 'bg-dark text-white');
+          myAuctionLogsArea.innerHTML += `<li class="list-group-item d-flex justify-content-between align-items-center py-2 px-2"><div class="me-2 text-truncate"><strong class="text-dark d-block">${title}</strong><small class="text-muted text-truncate d-block" style="font-size:0.75rem; max-width: 180px;">${desc}</small><span class="text-muted" style="font-size:0.7rem;">${al.created_at ? al.created_at.replace('T', ' ').substring(0,19) : ''}</span></div><div class="text-end text-nowrap"><span class="badge ${color} text-white rounded-pill">${al.bid_status}</span><div class="text-danger small">(凍結 ${al.bid_coins}幣)</div></div></li>`;
+        });
+      }
+    }
+  }
+  async function redeemVirtualCode() {
+    let code = document.getElementById('inputVirtualCode').value.trim();
+    if (!code) return alert('請輸入兌換序號！');
+    if (!currentMember) return alert('請先登入會員！');
+    let res = await callApi('/api/member/redeem-virtual-code', 'POST', {
+      memberId: currentMember.member_id,
+      code: code
+    });
+    alert(res.message);
+    if (res.success) {
+      document.getElementById('inputVirtualCode').value = '';
+      if (res.newPoints !== undefined) {
+        currentMember.available_coins = res.newPoints;
+        document.getElementById('cardPoints').innerText = res.newPoints + ' 幣';
+      }
+    }
+  }
+  async function participateLottery(eventId, costCoins, title) {
+    if (currentMember.available_coins < costCoins) return alert('拉咘幣不足！');
+    if (confirm(`確定消耗 ${costCoins} 幣參與「${title}」？`)) {
+      let res = await callApi('/api/member/participate-lottery', 'POST', { memberId: currentMember.member_id, eventId });
+      alert(res.message);
+      if (res.success) {
+        currentMember.available_coins = res.newPoints;
+        document.getElementById('cardPoints').innerText = res.newPoints + ' 幣';
+        loadActivitiesData();
+      }
+    }
+  }
+  async function placeBid(auctionId, minBid) {
+    let bidVal = Number(document.getElementById('bidInput_' + auctionId).value);
+    if (bidVal < minBid) return alert(`出價必須 >= ${minBid} 幣`);
+    if (currentMember.available_coins < bidVal) return alert('可用拉咘幣不足！');
+    if (confirm(`確定出價 ${bidVal} 幣？（點數將暫時凍結）`)) {
+      let res = await callApi('/api/member/place-bid', 'POST', { memberId: currentMember.member_id, auctionId, bidAmount: bidVal });
+      alert(res.message);
+      if (res.success) {
+        currentMember.available_coins = res.newPoints;
+        currentMember.frozen_coins = res.newFrozen;
+        document.getElementById('cardPoints').innerText = res.newPoints + ' 幣';
+        document.getElementById('cardFrozen').innerText = '凍結中: ' + res.newFrozen + ' 幣';
+        loadActivitiesData();
+      }
+    }
+  }
+  async function redeemProduct(productId, priceCoins, productName) {
+    if (currentMember.available_coins < priceCoins) return alert('拉咘幣不足！');
+    if (confirm(`確定消耗 ${priceCoins} 幣兌換「${productName}」？`)) {
+      let res = await callApi('/api/member/redeem-product', 'POST', { memberId: currentMember.member_id, productId });
+      alert(res.message);
+      if (res.success) {
+        currentMember.available_coins = res.newPoints;
+        document.getElementById('cardPoints').innerText = res.newPoints + ' 幣';
+        loadStoreProducts();
+      }
+    }
+  }
+  async function login() {
+    let phone = document.getElementById('loginPhone').value.trim(), password = document.getElementById('loginPwd').value;
+    if (!phone || !password) return alert('請輸入帳號密碼');
+    let res = await callApi('/api/member/login', 'POST', { phone, password });
+    if (res.success) {
+      localStorage.setItem('raibu_phone', phone); localStorage.setItem('raibu_pwd', password);
+      showApp(res.member);
+    } else { alert(res.message); }
+  }
+  async function register() {
+    if (!document.getElementById('chkTerms').checked) return alert('請先同意防範漏洞條款！');
+    let data = { name: document.getElementById('regName').value.trim(), phone: document.getElementById('regPhone').value.trim(), password: document.getElementById('regPwd').value, gender: document.getElementById('regGender').value, birthdate: document.getElementById('regBirthday').value };
+    if (!data.name || !data.phone || !data.password) return alert('請完整填寫註冊資料');
+    let res = await callApi('/api/member/register', 'POST', data);
+    alert(res.message);
+    if (res.success) { document.getElementById('loginPhone').value = data.phone; switchAuthTab('login'); }
+  }
+  function logout() {
+    localStorage.clear(); currentMember = null;
+    document.getElementById('appSection').style.display = 'none';
+    document.getElementById('topNavbarContainer').style.display = 'none';
+    document.getElementById('bodyTag').style.backgroundColor = '#032E5B';
+    let nav = document.getElementById('bottomNav'); nav.classList.remove('d-flex'); nav.classList.add('d-none');
+    document.getElementById('authSection').style.display = 'block'; switchAuthTab('login');
+  }
+  async function showApp(member) {
+    currentMember = member;
+    document.getElementById('authSection').style.display = 'none';
+    document.getElementById('topNavbarContainer').style.display = 'flex';
+    document.getElementById('appSection').style.display = 'block';
+    document.getElementById('bodyTag').style.backgroundColor = '#f4f6f9';
+    let nav = document.getElementById('bottomNav'); nav.classList.remove('d-none'); nav.classList.add('d-flex');
+    document.getElementById('btnLogout').style.display = 'inline-block';
+    
+    document.getElementById('userInfoHeader').innerText = member.name;
+    document.getElementById('cardName').innerText = member.name;
+    document.getElementById('cardPhone').innerText = member.phone;
+    document.getElementById('cardId').innerText = member.member_id;
+    document.getElementById('cardVip').innerText = member.vip_level || '一般會員';
+    document.getElementById('cardPoints').innerText = (member.available_coins || 0) + ' 幣';
+    document.getElementById('cardFrozen').innerText = '凍結中: ' + (member.frozen_coins || 0) + ' 幣';
+    
+    // 初始化時間戳記基準
+    await initSystemTimestamps();
+    loadAnnouncements();
+    loadActivitiesData();
+    loadProfileCenterData();
+  }
+  function switchAuthTab(t) {
+    document.querySelectorAll('.auth-tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('loginForm').style.display = t === 'login' ? 'block' : 'none';
+    document.getElementById('registerForm').style.display = t === 'register' ? 'block' : 'none';
+    let activeBtn = document.querySelectorAll('.auth-tab-btn')[t === 'login' ? 0 : 1];
+    activeBtn.classList.add('active');
+  }
+  function switchStoreTab(name, btn) {
+    document.querySelectorAll('.store-tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('#storeTabs .nav-link').forEach(l => { l.classList.remove('active', 'text-white'); l.classList.add('text-dark'); l.style.backgroundColor = ''; });
+    document.getElementById('tab' + name).classList.add('active');
+    btn.classList.add('active', 'text-white'); btn.style.backgroundColor = '#032E5B';
+  }
+  function switchEventTab(name, btn) {
+    document.querySelectorAll('.event-sub-content').forEach(c => c.style.display = 'none');
+    document.querySelectorAll('#eventSubTabs .nav-link').forEach(l => { l.classList.remove('active', 'text-white'); l.classList.add('text-dark', 'bg-light'); l.style.backgroundColor = ''; });
+    document.getElementById('subTab' + name).style.display = 'block';
+    btn.classList.add('active', 'text-white'); btn.classList.remove('bg-light', 'text-dark');
+    btn.style.backgroundColor = name === 'Lottery' ? '#d9534f' : '#212529';
+  }
+  function navTo(name, btn) {
+    document.querySelectorAll('.page-section').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('page' + name).classList.add('active');
+    btn.classList.add('active');
+    if (name === 'Events') { loadActivitiesData(); }
+    if (name === 'Profile') { loadProfileCenterData(); }
+  }
+</script>
+</body>
+</html>

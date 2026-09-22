@@ -1,0 +1,2028 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>拉咘幣 POS 店員與後台營運管理端</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #f4f6f9; font-family: -apple-system, sans-serif; font-size: 0.85rem; padding-bottom: 90px; overflow-x: hidden; }
+    .card-header-custom { background-color: #ff9800; color: white; font-weight: bold; }
+    .badge-points { background-color: #e65100; font-size: 1.1rem; }
+    .compact-card { margin-bottom: 0.3rem; }
+    .compact-card .card-header { padding: 0.3rem 0.5rem; font-size: 0.8rem; }
+    .compact-card .card-body { padding: 0.5rem; }
+    .pos-action-card .form-label { font-size: 0.8rem; font-weight: bold; margin-bottom: 0.1rem; }
+    .pos-action-card .form-control, .pos-action-card .form-select { font-size: 0.9rem; padding: 0.3rem 0.4rem; }
+    .coupon-item { font-size: 0.85rem !important; padding: 0.3rem 0.4rem !important; }
+    .coupon-checkbox { width: 1.0rem; height: 1.0rem; margin-top: 0.1rem; }
+    .clickable-id { cursor: pointer; color: #0d6efd; text-decoration: underline; }
+    .clickable-id:hover { color: #0a58ca; }
+    
+    .pos-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #e0e0e0; z-index: 1000; height: 70px; box-shadow: 0 -2px 5px rgba(0,0,0,0.05); }
+    .pos-nav-btn { border: none; background: none; color: #757575; padding: 6px 0; font-size: 0.75rem; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .pos-nav-btn.active { color: #ff9800; font-weight: bold; border-top: 3px solid #ff9800; background-color: #fffaf0; }
+    
+    .page-section, .sub-section { display: none; }
+    .page-section.active, .sub-section.active { display: block; }
+    .preview-img { max-height: 100px; object-fit: cover; border-radius: 6px; margin-top: 3px; }
+  </style>
+</head>
+<body>
+<div class="container-fluid py-2 px-2">
+  <!-- 登入驗證畫面 -->
+  <div id="loginBlock" class="card shadow-sm mx-auto mt-5" style="max-width: 380px;">
+    <div class="card-header card-header-custom text-center py-3">🔐 店員端權限驗證</div>
+    <div class="card-body p-4">
+      <div class="mb-3">
+        <label class="form-label small">請輸入管理員密碼</label>
+        <input type="password" id="adminPassword" class="form-control text-center" placeholder="****" onkeyup="if(event.key==='Enter') verifyAdmin()">
+      </div>
+      <button class="btn btn-warning w-100 text-white fw-bold py-2" onclick="verifyAdmin()">登入 POS 控制台</button>
+    </div>
+  </div>
+  
+  <!-- 主控制台畫面 -->
+  <div id="mainBlock" style="display: none;">
+    
+    <!-- 頂部權限狀態列 -->
+    <div class="card shadow-sm compact-card mb-2 bg-dark text-white">
+      <div class="card-body py-1 px-3 d-flex justify-content-between align-items-center">
+        <div>
+          <span class="small">權限狀態：</span>
+          <span id="authBadge" class="badge bg-secondary">一般店員模式 (個資已遮罩)</span>
+        </div>
+        <div>
+          <button id="btnToggleHighAuth" class="btn btn-outline-warning btn-sm py-0 px-2" style="font-size: 0.75rem;" onclick="toggleHighAuthModal()">🔓 解鎖高級管理員</button>
+          <button class="btn btn-outline-light btn-sm py-0 px-2 ms-1" style="font-size: 0.75rem;" onclick="staffLogout()">🔒 登出</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 1. 會員交易與核銷分頁 -->
+    <div id="pagePosMain" class="page-section active">
+      <div class="card shadow-sm compact-card bg-white">
+        <div class="card-body py-2 px-3">
+          <div class="row g-2 align-items-center">
+            <div class="col-md-10 col-12">
+              <div class="input-group input-group-sm">
+                <span class="input-group-text bg-warning text-dark fw-bold px-3">🔍 查詢</span>
+                <input type="text" id="searchInput" class="form-control" placeholder="輸入電話 (10位)、完整會員ID或末5碼" onkeyup="if(event.key==='Enter') searchMember()">
+                <button class="btn btn-warning text-dark fw-bold px-4 py-2" onclick="searchMember()">搜尋</button>
+                <button class="btn btn-outline-secondary px-3 py-2 fw-bold text-dark" onclick="clearSearch()">清除</button>
+              </div>
+            </div>
+            <div class="col-md-2 col-12 text-end">
+              <span id="posStatusMsg" class="small text-muted">請搜尋會員</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card shadow-sm compact-card mb-2 border-secondary">
+        <div class="card-header bg-secondary text-white fw-bold d-flex justify-content-between align-items-center py-1 px-2">
+          <span style="font-size:0.8rem;">📜 最近 3 筆異動 (點擊 ID 可快速帶入查詢)</span>
+          <button class="btn btn-sm btn-outline-light py-0 px-1" onclick="loadRecentStoreLogs()" style="font-size: 0.7rem;">🔄 重新整理</button>
+        </div>
+        <div class="card-body p-1">
+          <ul id="storeRecentLogList" class="list-group list-group-flush small">
+            <li class="list-group-item text-center text-muted py-1">載入中...</li>
+          </ul>
+        </div>
+      </div>
+      <div id="memberPanel" style="display: none;">
+        <div class="row g-2">
+          <div class="col-lg-3 col-md-4 col-12">
+            <div class="card shadow-sm compact-card h-100">
+              <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center py-2">
+                <span>👤 會員資料</span>
+                <span id="mVip" class="badge bg-secondary" style="font-size: 0.75rem;">一般會員</span>
+              </div>
+              <div class="card-body py-3">
+                <h5 id="mName" class="fw-bold mb-1 text-primary">---</h5>
+                <div class="small text-muted" style="font-size: 0.8rem;">ID: <span id="mId">---</span> | 電話: <span id="mPhone">---</span></div>
+                <div class="small text-muted mb-1" style="font-size: 0.8rem;">生日: <span id="mBirthday">-</span></div>
+                <div class="mb-2 p-2 bg-light rounded border">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <span class="small fw-bold text-danger">📝 備註：</span>
+                    <button id="btnEditNotes" class="btn btn-outline-dark btn-sm py-0 px-2" style="font-size: 0.75rem;" onclick="toggleEditNotes()">編輯</button>
+                  </div>
+                  <div id="notesViewMode" class="small text-dark mt-1" style="word-break: break-all;">無</div>
+                  <div id="notesEditMode" style="display: none;" class="mt-1">
+                    <textarea id="notesInput" class="form-control form-control-sm mb-1" rows="2" placeholder="請輸入會員備註..."></textarea>
+                    <div class="text-end">
+                      <button class="btn btn-secondary btn-sm py-0 px-2" style="font-size: 0.7rem;" onclick="toggleEditNotes()">取消</button>
+                      <button class="btn btn-success btn-sm py-0 px-2" style="font-size: 0.7rem;" onclick="saveMemberNotes()">儲存</button>
+                    </div>
+                  </div>
+                </div>
+                <hr class="my-2">
+                <div class="d-flex justify-content-between align-items-center">
+                  <span class="fw-bold small">可用拉咘幣：</span>
+                  <span id="mPoints" class="badge badge-points py-1 px-2">0 幣</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                  <span class="small text-muted">累計消費：</span>
+                  <span id="mSpent" class="fw-bold text-success">$0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-6 col-md-8 col-12">
+            <div class="card shadow-sm compact-card h-100 pos-action-card border-primary">
+              <div class="card-header bg-primary text-white fw-bold py-2">💰 點數異動與消費錄入</div>
+              <div class="card-body py-2">
+                <div class="row g-2 mb-2">
+                  <div class="col-7">
+                    <label class="form-label">類型</label>
+                    <select id="transType" class="form-select form-select-sm">
+                      <option value="消費">現場消費發幣</option>
+                      <option value="扣除">消費退款/扣除</option>
+                      <option value="活動加點">活動加點</option>
+                      <option value="活動扣回">活動扣回</option>
+                    </select>
+                  </div>
+                  <div class="col-5">
+                    <label class="form-label">倍率</label>
+                    <select id="transMultiplier" class="form-select form-select-sm">
+                      <option value="1">1 倍</option>
+                      <option value="2">2 倍</option>
+                      <option value="3">3 倍</option>
+                      <option value="4">4 倍</option>
+                      <option value="5">5 倍</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="row g-2 mb-2">
+                  <div class="col-6">
+                    <label class="form-label">金額 / 數值</label>
+                    <input type="number" id="transAmount" class="form-control form-control-sm" placeholder="請輸入金額 ($)">
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label text-danger">每次消費固定額外+拉咘幣</label>
+                    <input type="number" id="transExtraCoins" class="form-control form-control-sm border-danger" placeholder="例如: 2">
+                  </div>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">備註原因</label>
+                  <input type="text" id="transReason" class="form-control form-control-sm" placeholder="選填原因說明">
+                </div>
+                <button class="btn btn-success w-100 fw-bold py-2 shadow-sm" style="font-size: 1.05rem;" onclick="submitTransaction()">🚀 確認執行異動</button>
+                <div class="text-center mt-1" style="min-height: 20px;">
+                  <span id="transResultMsg" class="fw-bold small"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-3 col-md-12 col-12">
+            <div class="card shadow-sm compact-card h-100 border-warning">
+              <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center py-2">
+                <span>🎟️ 待核銷優惠券</span>
+                <button id="btnRedeem" class="btn btn-dark btn-sm fw-bold px-3 py-1" style="font-size: 0.9rem;" onclick="redeemSelectedCoupons()" disabled>✅ 核銷</button>
+              </div>
+              <div class="card-body p-1">
+                <div id="couponList" class="list-group list-group-flush" style="max-height: 240px; overflow-y: auto;">
+                  <div class="text-muted text-center py-2 small">無待核銷優惠券</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 2. 🎲 抽獎活動開獎管理分頁 -->
+    <div id="pageAdminLottery" class="page-section">
+      <div class="row g-3">
+        <div class="col-md-3 col-12">
+          <div class="card shadow-sm">
+            <div class="card-header bg-danger text-white fw-bold">🎲 抽獎管理選單</div>
+            <div class="list-group list-group-flush" id="lotterySubNav">
+              <button class="list-group-item list-group-item-action active fw-bold" onclick="switchLotterySubTab('Edit', this)">✏️ 抽獎活動編輯</button>
+              <button class="list-group-item list-group-item-action fw-bold" onclick="switchLotterySubTab('Draw', this)">🎯 抽獎活動開獎</button>
+              <button class="list-group-item list-group-item-action fw-bold" onclick="switchLotterySubTab('History', this)">📜 開獎歷史查詢</button>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-9 col-12">
+          <div id="subLotteryEdit" class="sub-section active">
+            <div class="card shadow-sm border-danger">
+              <div class="card-header bg-danger text-white fw-bold d-flex justify-content-between align-items-center">
+                <span>✏️ 抽獎活動編輯與新增</span>
+                <div>
+                  <button class="btn btn-warning btn-sm text-dark fw-bold me-1" onclick="prepareNewLottery()">➕ 建立新活動</button>
+                  <button id="btnDeleteLottery" class="btn btn-dark btn-sm text-white fw-bold" onclick="deleteLotteryEvent()" disabled>🗑️ 刪除此活動</button>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="mb-2">
+                  <label class="form-label small fw-bold">選擇現有活動以編輯</label>
+                  <select id="editLotterySelect" class="form-select form-select-sm" onchange="loadLotteryToForm()"><option value="">-- 載入中 --</option></select>
+                </div>
+                <div class="row g-2 mb-2">
+                  <div class="col-md-4 col-12"><label class="form-label small fw-bold">活動編號</label><input type="text" id="lotteryId" class="form-control form-control-sm" readonly></div>
+                  <div class="col-md-8 col-12"><label class="form-label small fw-bold">活動標題名稱</label><input type="text" id="lotteryTitle" class="form-control form-control-sm"></div>
+                </div>
+                <div class="row g-2 mb-2">
+                  <div class="col-md-4 col-12"><label class="form-label small fw-bold">所需拉咘幣</label><input type="number" id="lotteryCost" class="form-control form-control-sm" value="20"></div>
+                  <div class="col-md-4 col-12"><label class="form-label small fw-bold">每人上限</label><input type="number" id="lotteryLimit" class="form-control form-control-sm" value="1"></div>
+                  <div class="col-md-4 col-12"><label class="form-label small fw-bold">中獎名額</label><input type="number" id="lotteryQuota" class="form-control form-control-sm" value="1"></div>
+                </div>
+                <div class="row g-2 mb-2">
+                  <div class="col-md-6 col-12"><label class="form-label small fw-bold">開始時間</label><input type="datetime-local" id="lotteryStart" class="form-control form-control-sm"></div>
+                  <div class="col-md-6 col-12"><label class="form-label small fw-bold">結束時間</label><input type="datetime-local" id="lotteryEnd" class="form-control form-control-sm"></div>
+                </div>
+                <div class="mb-2">
+                  <label class="form-label small fw-bold">活動圖片選擇 圖片建議：正方形 (1:1) 或略帶長方形，建議 800 x 800 px</label>
+                  <input type="file" id="lotteryImageFile" class="form-control form-control-sm" accept="image/*" onchange="stageLotteryImage(this)">
+                  <input type="hidden" id="lotteryImageId">
+                  <div id="lotteryImagePreviewContainer"></div>
+                </div>
+                <div class="mb-3"><label class="form-label small fw-bold">活動規則說明</label><textarea id="lotteryRules" class="form-control form-control-sm" rows="3"></textarea></div>
+                <button class="btn btn-danger w-100 fw-bold py-2" onclick="saveLotteryEvent()">💾 儲存並發布抽獎活動</button>
+              </div>
+            </div>
+          </div>
+          <div id="subLotteryDraw" class="sub-section">
+            <div class="card shadow-sm border-primary">
+              <div class="card-header bg-primary text-white fw-bold">🎯 進行中活動開獎控制</div>
+              <div class="card-body">
+                <div class="mb-3">
+                  <label class="form-label small fw-bold">選擇進行中的抽獎活動</label>
+                  <select id="drawLotterySelect" class="form-select form-select-sm" onchange="onDrawSelectChange()"><option value="">-- 請選擇活動 --</option></select>
+                </div>
+                <div id="drawInfoBox" class="alert alert-light border mb-3 small" style="display: none;">
+                  <div id="drawImgBox" class="mb-2 text-center"></div>
+                  <div>🚀 開始時間：<span id="drawStartTime">-</span></div>
+                  <div>📅 結束時間：<span id="drawEndTime">-</span></div>
+                  <div>🎯 中獎名額：<span id="drawQuota">0</span> 名</div>
+                  <div>👥 參與總人數：<span id="drawParticipants" class="fw-bold text-primary">0</span> 人</div>
+                  <div>💰 消耗總點數：<span id="drawTotalCoins" class="fw-bold text-danger">0</span> 幣</div>
+                  <div class="mt-2 text-secondary" id="drawRules">活動說明：-</div>
+                </div>
+                <button id="btnExecuteDraw" class="btn btn-primary w-100 fw-bold py-2" onclick="executeDrawLottery()" disabled>🎁 立即執行隨機開獎、派發券並關閉活動</button>
+              </div>
+            </div>
+          </div>
+          <div id="subLotteryHistory" class="sub-section">
+            <div class="card shadow-sm border-secondary">
+              <div class="card-header bg-secondary text-white fw-bold">📜 已關閉活動開獎歷史查詢</div>
+              <div class="card-body">
+                <div class="mb-3">
+                  <label class="form-label small fw-bold">選擇歷史活動</label>
+                  <select id="historyLotterySelect" class="form-select form-select-sm" onchange="onHistorySelectChange()"><option value="">-- 請選擇歷史活動 --</option></select>
+                </div>
+                <div id="historyInfoBox" class="alert alert-light border mb-3 small" style="display: none;">
+                  <div id="historyImgBox" class="mb-2 text-center"></div>
+                  <div>📌 狀態：<span id="historyStatus" class="fw-bold">-</span></div>
+                  <div>🚀 開始時間：<span id="historyStartTime" class="fw-bold">-</span></div>
+                  <div>🏁 結束時間：<span id="historyEndTime" class="fw-bold">-</span></div>
+                  <div>🎯 中獎名額：<span id="historyQuota">0</span> 名</div>
+                  <div>👥 總參與人數：<span id="historyParticipants" class="fw-bold text-primary">0</span> 人</div>
+                  <div>💰 總消耗拉咘幣：<span id="historyTotalCoins" class="fw-bold text-danger">0</span> 幣</div>
+                  <div class="mt-2 text-secondary"><strong>規則：</strong><div id="historyRules" class="bg-white p-2 border rounded mt-1 text-dark" style="white-space: pre-wrap;">-</div></div>
+                  <hr class="my-2">
+                  <h6 class="fw-bold text-dark border-bottom pb-1 mt-3">🏆 中獎名單</h6>
+                  <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                    <table class="table table-sm table-bordered text-center align-middle" style="font-size: 0.8rem;">
+                      <thead class="table-dark"><tr><th>會員序號</th><th>姓名</th><th>性別</th><th>電話</th><th>狀態</th></tr></thead>
+                      <tbody id="historyWinnersTableBody"><tr><td colspan="5" class="text-muted">無資料</td></tr></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 3. 🔨 拍賣結標管理分頁 -->
+    <div id="pageAdminAuction" class="page-section">
+      <div class="row g-3">
+        <div class="col-md-3 col-12">
+          <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white fw-bold">🔨 拍賣管理選單</div>
+            <div class="list-group list-group-flush" id="auctionSubNav">
+              <button class="list-group-item list-group-item-action active fw-bold" onclick="switchAuctionSubTab('Edit', this)">✏️ 拍賣活動編輯</button>
+              <button class="list-group-item list-group-item-action fw-bold" onclick="switchAuctionSubTab('Close', this)">🏆 拍賣活動結標</button>
+              <button class="list-group-item list-group-item-action fw-bold" onclick="switchAuctionSubTab('History', this)">📜 拍賣活動歷史</button>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-9 col-12">
+          <div id="subAuctionEdit" class="sub-section active">
+            <div class="card shadow-sm border-dark">
+              <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
+                <span>✏️ 拍賣活動編輯與新增</span>
+                <div>
+                  <button class="btn btn-warning btn-sm text-dark fw-bold me-1" onclick="prepareNewAuction()">➕ 建立新拍賣</button>
+                  <button id="btnDeleteAuction" class="btn btn-danger btn-sm text-white fw-bold" onclick="deleteAuctionEvent()" disabled>🗑️ 刪除</button>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="mb-2"><label class="form-label small fw-bold">選擇拍賣品</label><select id="editAuctionSelect" class="form-select form-select-sm" onchange="loadAuctionToForm()"><option value="">-- 載入中 --</option></select></div>
+                <div class="row g-2 mb-2">
+                  <div class="col-md-4"><label class="form-label small">拍賣品 ID</label><input type="text" id="auctionId" class="form-control form-control-sm" readonly></div>
+                  <div class="col-md-8"><label class="form-label small">拍賣品名稱</label><input type="text" id="auctionTitle" class="form-control form-control-sm"></div>
+                </div>
+                <div class="row g-2 mb-2">
+                  <div class="col-md-6"><label class="form-label small">起標底價 (幣)</label><input type="number" id="auctionStartPrice" class="form-control form-control-sm" value="500"></div>
+                  <div class="col-md-6"><label class="form-label small">最低加價幅度</label><input type="number" id="auctionMinIncrement" class="form-control form-control-sm" value="50"></div>
+                </div>
+                <div class="row g-2 mb-2">
+                  <div class="col-md-6"><label class="form-label small">開始時間</label><input type="datetime-local" id="auctionStart" class="form-control form-control-sm"></div>
+                  <div class="col-md-6"><label class="form-label small">結束時間</label><input type="datetime-local" id="auctionEnd" class="form-control form-control-sm"></div>
+                </div>
+                <div class="mb-2"><label class="form-label small">顯示狀態</label><select id="auctionDisplayStatus" class="form-select form-select-sm"><option value="顯示">顯示</option><option value="隱藏">隱藏</option></select></div>
+                <div class="mb-2"><label class="form-label small">圖片選擇 圖片建議：正方形 (1:1) 或略帶長方形，建議 800 x 800 px</label><input type="file" id="auctionImageFile" class="form-control form-control-sm" accept="image/*" onchange="stageAuctionImage(this)"><input type="hidden" id="auctionImageId"><div id="auctionImagePreviewContainer"></div></div>
+                <div class="mb-3"><label class="form-label small">說明</label><textarea id="auctionDesc" class="form-control form-control-sm" rows="3"></textarea></div>
+                <button class="btn btn-dark w-100 fw-bold py-2" onclick="saveAuctionEvent()">💾 儲存拍賣活動</button>
+              </div>
+            </div>
+          </div>
+          <div id="subAuctionClose" class="sub-section">
+            <div class="card shadow-sm border-success">
+              <div class="card-header bg-success text-white fw-bold">🏆 進行中拍賣手動結標管理</div>
+              <div class="card-body">
+                <div class="mb-3"><label class="form-label small fw-bold">選擇進行中的拍賣品</label><select id="closeAuctionSelect" class="form-select form-select-sm" onchange="onCloseAuctionSelectChange()"><option value="">-- 請選擇 --</option></select></div>
+                <div id="closeAuctionInfoBox" class="alert alert-light border mb-3 small" style="display: none;">
+                  <div id="closeImgBox" class="mb-2 text-center"></div>
+                  <div>⏳ 開始時間：<span id="closeStartTime" class="fw-bold">-</span></div>
+                  <div>🏁 結束時間：<span id="closeEndTime" class="fw-bold">-</span></div>
+                  <div>📌 底價：<span id="closeStartPrice">0</span> 幣</div>
+                  <div>🔥 目前最高出價：<span id="closeCurrentBid" class="fw-bold text-danger">0</span> 幣</div>
+                  <div>👤 領先會員：<span id="closeHighestBidder" class="fw-bold text-primary">無人出價</span></div>
+                  <div class="mt-2 text-secondary" id="closeAuctionDesc">說明：-</div>
+                </div>
+                <button id="btnExecuteCloseAuction" class="btn btn-success w-100 fw-bold py-2" onclick="executeCloseAuction()" disabled>🏆 確認結標、扣凍結點數並派券</button>
+              </div>
+            </div>
+          </div>
+          <div id="subAuctionHistory" class="sub-section">
+            <div class="card shadow-sm border-secondary">
+              <div class="card-header bg-secondary text-white fw-bold">📜 已結標/流標拍賣歷史查詢</div>
+              <div class="card-body">
+                <div class="mb-3"><label class="form-label small fw-bold">選擇歷史拍賣品</label><select id="historyAuctionSelect" class="form-select form-select-sm" onchange="onHistoryAuctionSelectChange()"><option value="">-- 請選擇 --</option></select></div>
+                <div id="historyAuctionInfoBox" class="alert alert-light border mb-3 small" style="display: none;">
+                  <div id="historyAuctionImgBox" class="mb-2 text-center"></div>
+                  <div>📌 最終狀態：<span id="historyAuctionStatus" class="fw-bold">-</span></div>
+                  <div>⏳ 開始時間：<span id="historyAuctionStartTime" class="fw-bold text-primary">-</span></div>
+                  <div>🏁 結束時間：<span id="historyAuctionEndTime" class="fw-bold text-danger">-</span></div>
+                  <div>🔥 成交價：<span id="historyAuctionFinalPrice" class="fw-bold text-danger">0</span> 幣</div>
+                  <hr class="my-2">
+                  <h6 class="fw-bold text-success">🏆 得標者詳細資訊</h6>
+                  <div>🆔 會員序號：<span id="historyWinnerId" class="fw-bold">-</span></div>
+                  <div>👤 姓名：<span id="historyWinnerName" class="fw-bold">-</span></div>
+                  <div>⚥ 性別：<span id="historyWinnerGender" class="fw-bold">-</span></div>
+                  <div>📞 電話：<span id="historyWinnerPhone" class="fw-bold">-</span></div>
+                  <div class="mt-2 text-secondary" id="historyAuctionDesc">說明：-</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 4. ⚙️ 後台管理分頁 (5 大模組) -->
+    <div id="pageAdminPanel" class="page-section">
+      <div class="row g-3">
+        <div class="col-md-3 col-12">
+          <div class="card shadow-sm">
+            <div class="card-header bg-secondary text-white fw-bold">⚙️ 後台營運管理選單</div>
+            <div class="list-group list-group-flush" id="adminSubNav">
+              <button class="list-group-item list-group-item-action active fw-bold" onclick="switchAdminSub('Products', this)">📦 商品上架管理</button>
+              <button class="list-group-item list-group-item-action fw-bold" onclick="switchAdminSub('Codes', this)">🎟️ 虛擬序號管理</button>
+              <button class="list-group-item list-group-item-action fw-bold" onclick="switchAdminSub('Members', this)">👤 會員資料管理</button>
+              <button class="list-group-item list-group-item-action fw-bold" onclick="switchAdminSub('Announcements', this)">📢 公告欄管理</button>
+              <button class="list-group-item list-group-item-action fw-bold" onclick="switchAdminSub('Settings', this)">🛠️ 系統參數設定</button>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-9 col-12">
+          
+          <!-- 4.1 商品管理 -->
+          <div id="subAdminProducts" class="sub-section active">
+            <div class="card shadow-sm border-primary">
+              <div class="card-header bg-primary text-white fw-bold d-flex justify-content-between align-items-center">
+                <span>📦 商品上架與庫存管理</span>
+                <div>
+                  <button class="btn btn-warning btn-sm text-dark fw-bold me-1" onclick="prepareNewProduct()">➕ 新增商品</button>
+                  <button id="btnDeleteProduct" class="btn btn-dark btn-sm text-white fw-bold" onclick="deleteProduct()" disabled>🗑️ 刪除商品</button>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="row g-2 mb-2">
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold">🔍 快速搜尋商品 (輸入名稱或ID)</label>
+                    <input type="text" id="adminProductSearchInput" class="form-control form-control-sm" placeholder="輸入關鍵字過濾..." oninput="filterProductDropdown()">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold">選擇現有商品以編輯</label>
+                    <select id="adminProductSelect" class="form-select form-select-sm" onchange="loadProductFromDropdown()"><option value="">-- 請選擇商品 --</option></select>
+                  </div>
+                </div>
+                <div class="row g-2 mb-2">
+                  <div class="col-md-4"><label class="form-label small">商品 ID</label><input type="text" id="prodId" class="form-control form-control-sm" readonly></div>
+                  <div class="col-md-8"><label class="form-label small">商品名稱</label><input type="text" id="prodName" class="form-control form-control-sm"></div>
+                </div>
+                <div class="row g-2 mb-2">
+                  <div class="col-md-4"><label class="form-label small">類別</label><input type="text" id="prodCategory" class="form-control form-control-sm" value="兌換商品"></div>
+                  <div class="col-md-4"><label class="form-label small">所需幣值</label><input type="number" id="prodPrice" class="form-control form-control-sm" value="100"></div>
+                  <div class="col-md-4"><label class="form-label small">加購金額</label><input type="number" id="prodAddAmt" class="form-control form-control-sm" value="0"></div>
+                </div>
+                <div class="row g-2 mb-2">
+                  <div class="col-md-4"><label class="form-label small">總庫存</label><input type="number" id="prodTotalStock" class="form-control form-control-sm" value="50"></div>
+                  <div class="col-md-4"><label class="form-label small">剩餘庫存</label><input type="number" id="prodRemainingStock" class="form-control form-control-sm" value="50"></div>
+                  <div class="col-md-4"><label class="form-label small">狀態</label><select id="prodStatus" class="form-select form-select-sm"><option value="上架">上架</option><option value="下架">下架</option></select></div>
+                </div>
+                <div class="mb-2">
+                  <label class="form-label small">商品圖片選擇 圖片建議：正方形 (1:1) 或略帶長方形，建議 800 x 800 px</label>
+                  <input type="file" id="prodImageFile" class="form-control form-control-sm" accept="image/*" onchange="stageProductImage(this)">
+                  <input type="hidden" id="prodImageId">
+                  <div id="prodImagePreviewContainer"></div>
+                </div>
+                <div class="mb-3"><label class="form-label small">描述</label><textarea id="prodDesc" class="form-control form-control-sm" rows="2"></textarea></div>
+                <button class="btn btn-primary w-100 fw-bold" onclick="saveProduct()">💾 儲存商品資料</button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 4.2 虛擬序號管理 -->
+          <div id="subAdminCodes" class="sub-section">
+            <div class="card shadow-sm border-success mb-3">
+              <div class="card-header bg-success text-white fw-bold d-flex justify-content-between align-items-center">
+                <span>🟢 已啟用序號管理區</span>
+                <button class="btn btn-light btn-sm text-success fw-bold" onclick="prepareNewCode()">➕ 建立新序號</button>
+              </div>
+              <div class="card-body">
+                <div class="mb-2">
+                  <label class="form-label small fw-bold">選擇「已啟用」序號以編輯</label>
+                  <select id="adminActiveCodeSelect" class="form-select form-select-sm" onchange="loadCodeToForm(this.value)"><option value="">-- 請選擇已啟用序號 --</option></select>
+                </div>
+              </div>
+            </div>
+            <div class="card shadow-sm border-secondary mb-3">
+              <div class="card-header bg-secondary text-white fw-bold">
+                <span>🔴 已關閉序號管理區</span>
+              </div>
+              <div class="card-body">
+                <div class="mb-2">
+                  <label class="form-label small fw-bold">選擇「已關閉」序號以編輯或重新啟用</label>
+                  <select id="adminClosedCodeSelect" class="form-select form-select-sm" onchange="loadCodeToForm(this.value)"><option value="">-- 請選擇已關閉序號 --</option></select>
+                </div>
+              </div>
+            </div>
+            <div class="card shadow-sm border-dark">
+              <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
+                <span>✏️ 序號編輯與設定表單</span>
+                <button id="btnDeleteCode" class="btn btn-danger btn-sm text-white fw-bold" onclick="deleteVirtualCode()" disabled>🗑️ 刪除此序號</button>
+              </div>
+              <div class="card-body">
+                <div class="row g-2 mb-2">
+                  <div class="col-md-6"><label class="form-label small">兌換序號</label><input type="text" id="codeKey" class="form-control form-control-sm"></div>
+                  <div class="col-md-6">
+                    <label class="form-label small">狀態 (Status)</label>
+                    <select id="codeStatus" class="form-select form-select-sm">
+                      <option value="啟用">啟用</option>
+                      <option value="關閉">關閉</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="row g-2 mb-2">
+                  <div class="col-md-6"><label class="form-label small">獎勵類型</label><select id="codeRewardType" class="form-select form-select-sm"><option value="點數">點數</option><option value="指定商品">指定商品</option><option value="盲盒">盲盒</option></select></div>
+                  <div class="col-md-6"><label class="form-label small">獎勵內容 (點數或商品ID)</label><input type="text" id="codeRewardVal" class="form-control form-control-sm"></div>
+                </div>
+                <div class="row g-2 mb-2">
+                  <div class="col-md-6"><label class="form-label small">總兌換次數限制 (total_limit)</label><input type="number" id="codeTotalLimit" class="form-control form-control-sm" value="99999"></div>
+                  <div class="col-md-6"><label class="form-label small">每人兌換次數限制 (per_user_limit)</label><input type="number" id="codePerUserLimit" class="form-control form-control-sm" value="1"></div>
+                </div>
+                <div class="row g-2 mb-2">
+                  <div class="col-md-12"><label class="form-label small">盲盒隨機獎池</label><input type="text" id="codeRandomPool" class="form-control form-control-sm" placeholder="P001,P002"></div>
+                </div>
+                <button class="btn btn-success w-100 fw-bold mt-2" onclick="saveVirtualCode()">💾 儲存兌換序號</button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 4.3 會員資料管理 -->
+          <div id="subAdminMembers" class="sub-section">
+            <div class="card shadow-sm border-warning">
+              <div class="card-header bg-warning text-dark fw-bold">👤 會員完整資料與點數管理</div>
+              <div class="card-body">
+                <div class="mb-2">
+                  <label class="form-label small fw-bold">搜尋會員 (可輸入電話、完整ID或末5碼)</label>
+                  <div class="input-group input-group-sm">
+                    <input type="text" id="adminMemberSearchInput" class="form-control" placeholder="輸入電話號碼、完整ID或末5碼" onkeyup="if(event.key==='Enter') searchAdminMember()">
+                    <button class="btn btn-dark fw-bold px-3" onclick="searchAdminMember()">🔍 搜尋會員</button>
+                  </div>
+                </div>
+                <div id="adminMemberFormContainer" style="display: none;" class="mt-3 pt-2 border-top">
+                  <div class="row g-2 mb-2">
+                    <div class="col-md-4"><label class="form-label small">會員編號 (ID)</label><input type="text" id="admMemberId" class="form-control form-control-sm" readonly></div>
+                    <div class="col-md-4"><label class="form-label small">姓名</label><input type="text" id="admMemberName" class="form-control form-control-sm"></div>
+                    <div class="col-md-4"><label class="form-label small">電話</label><input type="text" id="admMemberPhone" class="form-control form-control-sm"></div>
+                  </div>
+                  <div class="row g-2 mb-2">
+                    <div class="col-md-4">
+                      <label class="form-label small">性別</label>
+                      <select id="admMemberGender" class="form-select form-select-sm">
+                        <option value="未指定">未指定</option>
+                        <option value="男">男</option>
+                        <option value="女">女</option>
+                      </select>
+                    </div>
+                    <div class="col-md-4"><label class="form-label small">生日</label><input type="date" id="admMemberBirthday" class="form-control form-control-sm"></div>
+                    <div class="col-md-4"><label class="form-label small">密碼 / PIN 碼</label><input type="text" id="admMemberPassword" class="form-control form-control-sm" placeholder="會員密碼"></div>
+                  </div>
+                  <div class="row g-2 mb-2">
+                    <div class="col-md-3"><label class="form-label small">可用拉咘幣</label><input type="number" id="admMemberCoins" class="form-control form-control-sm"></div>
+                    <div class="col-md-3"><label class="form-label small">累計消費金額</label><input type="number" id="admMemberSpent" class="form-control form-control-sm"></div>
+                    <div class="col-md-3">
+                      <label class="form-label small">VIP 等級</label>
+                      <select id="admMemberVip" class="form-select form-select-sm">
+                        <option value="一般會員">一般會員</option>
+                        <option value="白銀會員">白銀會員</option>
+                        <option value="黃金會員">黃金會員</option>
+                        <option value="鑽石會員">鑽石會員</option>
+                      </select>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label small">帳號狀態</label>
+                      <select id="admMemberStatus" class="form-select form-select-sm">
+                        <option value="正常">正常</option>
+                        <option value="停權">停權</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="mb-2"><label class="form-label small">會員備註</label><textarea id="admMemberNotes" class="form-control form-control-sm" rows="2"></textarea></div>
+                  <button class="btn btn-warning w-100 fw-bold text-dark mt-2" onclick="saveMemberData()">💾 儲存完整會員變更</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 4.4 公告欄管理 -->
+          <div id="subAdminAnnouncements" class="sub-section">
+            <div class="card shadow-sm border-danger">
+              <div class="card-header bg-danger text-white fw-bold d-flex justify-content-between align-items-center">
+                <span>📢 公告欄完整管理 (含精準分眾篩選)</span>
+                <button class="btn btn-dark btn-sm text-white fw-bold" onclick="prepareNewAnnouncement()">➕ 建立新公告</button>
+              </div>
+              <div class="card-body">
+                <div class="mb-2"><label class="form-label small fw-bold">選擇現有公告</label><select id="adminAnnouncementSelect" class="form-select form-select-sm" onchange="loadAnnouncementToForm()"><option value="">-- 請選擇公告 --</option></select></div>
+                <div class="row g-2 mb-2">
+                  <div class="col-md-4"><label class="form-label small">公告編號 ID</label><input type="text" id="annId" class="form-control form-control-sm" readonly></div>
+                  <div class="col-md-8"><label class="form-label small">公告標題</label><input type="text" id="annTitle" class="form-control form-control-sm"></div>
+                </div>
+                <div class="row g-2 mb-2 bg-light p-2 rounded border">
+                  <div class="col-md-4">
+                    <label class="form-label small fw-bold text-danger">未消費天數篩選</label>
+                    <input type="number" id="annFilterUnspentDays" class="form-control form-control-sm" value="-1" placeholder="-1代表不限">
+                    <small class="text-muted" style="font-size:0.7rem;">超過幾天未消費才顯示</small>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label small fw-bold text-danger">年齡區間篩選</label>
+                    <input type="text" id="annFilterAgeRange" class="form-control form-control-sm" value="全部" placeholder="全部 或 20-30">
+                    <small class="text-muted" style="font-size:0.7rem;">例如: 全部、20-30、30+</small>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label small fw-bold text-danger">性別篩選</label>
+                    <select id="annFilterGender" class="form-select form-select-sm">
+                      <option value="全部">全部</option>
+                      <option value="男">男</option>
+                      <option value="女">女</option>
+                      <option value="其他">其他</option>
+                    </select>
+                    <small class="text-muted" style="font-size:0.7rem;">指定目標性別</small>
+                  </div>
+                </div>
+                <div class="row g-2 mb-2">
+                  <div class="col-md-6">
+                    <label class="form-label small">顯示狀態</label>
+                    <select id="annStatus" class="form-select form-select-sm">
+                      <option value="已發布">已發布</option>
+                      <option value="隱藏">隱藏</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small">是否置頂</label>
+                    <select id="annIsPinned" class="form-select form-select-sm">
+                      <option value="否">否</option>
+                      <option value="是">是</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="mb-2">
+                  <label class="form-label small">公告圖片選擇 圖片建議:寬幅橫式（建議比例約 16:9 或 2:1），寬度 1200px，高度 600px</label>
+                  <input type="file" id="annImageFile" class="form-control form-control-sm" accept="image/*" onchange="stageAnnouncementImage(this)">
+                  <input type="hidden" id="annImageId">
+                  <div id="annImagePreviewContainer"></div>
+                </div>
+                <div class="mb-2"><label class="form-label small">公告內容</label><textarea id="annContent" class="form-control form-control-sm" rows="3"></textarea></div>
+                <button class="btn btn-danger w-100 fw-bold" onclick="saveAnnouncement()">💾 儲存完整公告資料與分眾設定</button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 4.5 系統設定管理 -->
+          <div id="subAdminSettings" class="sub-section">
+            <div class="card shadow-sm border-dark">
+              <div class="card-header bg-dark text-white fw-bold">🛠️ 系統參數設定</div>
+              <div class="card-body">
+                <div class="mb-2"><label class="form-label small fw-bold">選擇參數鍵值</label><select id="adminSettingSelect" class="form-select form-select-sm" onchange="loadSettingToForm()"><option value="">-- 請選擇參數 --</option></select></div>
+                <div class="mb-2"><label class="form-label small">參數鍵值 (Key)</label><input type="text" id="settingKey" class="form-control form-control-sm" readonly></div>
+                <div class="mb-2"><label class="form-label small">參數數值 (Value)</label><input type="text" id="settingVal" class="form-control form-control-sm"></div>
+                <div class="mb-3"><label class="form-label small">說明</label><input type="text" id="settingDesc" class="form-control form-control-sm"></div>
+                <button class="btn btn-dark w-100 fw-bold" onclick="saveSystemSetting()">💾 儲存系統設定</button>
+              </div>
+            </div>
+          </div>
+          
+        </div>
+      </div>
+    </div>
+    
+    <!-- 5. 📊 運營數據分析分頁 -->
+    <div id="pageAnalytics" class="page-section">
+      <div class="card shadow-sm mb-2 border-warning">
+        <div class="card-body bg-light rounded py-1 px-3">
+          <div class="row align-items-center g-2">
+            <div class="col-md-3 col-12"><h6 class="fw-bold m-0 text-dark">📊 營運數據分析</h6></div>
+            <div class="col-md-9 col-12">
+              <div class="input-group input-group-sm">
+                <span class="input-group-text bg-warning text-dark fw-bold">查詢月份</span>
+                <input type="month" id="analyticsMonthInput" class="form-control">
+                <button class="btn btn-warning text-dark fw-bold px-3" onclick="loadFullAnalyticsData()">🔍 查詢</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 會員回訪與沈睡週期分析 -->
+      <div class="card shadow-sm mb-2 border-secondary">
+        <div class="card-header bg-secondary text-white py-1 px-2 fw-bold d-flex justify-content-between align-items-center" style="font-size:0.8rem; cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#sleepMemberCollapse">
+          <span>⏳ 會員回訪與沈睡週期分佈 (點擊展開查看)</span>
+          <span style="font-size: 0.7rem;">▼ 展開/收合</span>
+        </div>
+        <div class="collapse" id="sleepMemberCollapse">
+          <div class="card-body p-2 bg-light">
+            <div class="row g-2 text-center" id="sleepMembersStatsBox">
+              <div class="col"><div class="p-1 bg-white rounded border"><small class="text-muted" style="font-size:0.7rem;">活躍客(≤15天)</small><h6 id="sleepU15" class="fw-bold text-success m-0">0人</h6></div></div>
+              <div class="col"><div class="p-1 bg-white rounded border"><small class="text-muted" style="font-size:0.7rem;">回頭客(16-30)</small><h6 id="sleepU30" class="fw-bold text-primary m-0">0人</h6></div></div>
+              <div class="col"><div class="p-1 bg-white rounded border"><small class="text-muted" style="font-size:0.7rem;">關注期(31-60)</small><h6 id="sleepU60" class="fw-bold text-warning m-0">0人</h6></div></div>
+              <div class="col"><div class="p-1 bg-white rounded border"><small class="text-muted" style="font-size:0.7rem;">輕度沈睡(61-90)</small><h6 id="sleepU90" class="fw-bold text-secondary m-0">0人</h6></div></div>
+              <div class="col"><div class="p-1 bg-white rounded border"><small class="text-muted" style="font-size:0.7rem;">重度流失(>90)</small><h6 id="sleepOver90" class="fw-bold text-danger m-0">0人</h6></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 總覽與當月數據整合雙層卡片區塊 -->
+      <div class="row g-2 mb-2">
+        <div class="col-md-3 col-6"><div class="card bg-primary text-white p-2 shadow-sm text-center"><small style="font-size:0.7rem;">總註冊 / 當月註冊</small><h6 class="fw-bold m-0"><span id="statTotalMembers">0人</span> / <span id="statMonthMembers" class="text-warning">0人</span></h6></div></div>
+        <div class="col-md-3 col-6"><div class="card bg-success text-white p-2 shadow-sm text-center"><small style="font-size:0.7rem;">總發放 / 當月發放</small><h6 class="fw-bold m-0"><span id="statTotalCoins">0幣</span> / <span id="statMonthCoins" class="text-warning">0幣</span></h6></div></div>
+        <div class="col-md-3 col-6"><div class="card bg-dark text-white p-2 shadow-sm text-center"><small style="font-size:0.7rem;">總消費 / 當月消費</small><h6 class="fw-bold m-0"><span id="statTotalSpent">$0</span> / <span id="statMonthSpent" class="text-warning">$0</span></h6></div></div>
+        <div class="col-md-3 col-6">
+		<div class="card bg-secondary text-white p-2 shadow-sm text-center">
+			<small style="font-size:0.7rem;">總剩餘幣 / 當月壽星</small>
+			<h6 class="fw-bold m-0">
+				<span id="statTotalRemainingCoins">0幣</span> / <span id="statMonthBirthday" class="text-warning">0人</span>
+			</h6>
+		</div>
+
+	</div>
+
+      </div>
+
+      <!-- TOP3 排行榜 -->
+      <div class="row g-2 mb-2">
+        <div class="col-md-4 col-12">
+          <div class="card shadow-sm h-100">
+            <div class="card-header bg-danger text-white py-1 px-2 fw-bold" style="font-size:0.8rem;">🔥 兌換商品 TOP 3</div>
+            <ul id="topRedeemList" class="list-group list-group-flush small">
+              <li class="list-group-item text-center text-muted py-1">尚無資料</li>
+            </ul>
+          </div>
+        </div>
+        <div class="col-md-4 col-12">
+          <div class="card shadow-sm h-100">
+            <div class="card-header bg-warning text-dark py-1 px-2 fw-bold" style="font-size:0.8rem;">🛒 加購商品 TOP 3</div>
+            <ul id="topAddonList" class="list-group list-group-flush small">
+              <li class="list-group-item text-center text-muted py-1">尚無資料</li>
+            </ul>
+          </div>
+        </div>
+        <div class="col-md-4 col-12">
+          <div class="card shadow-sm h-100">
+            <div class="card-header bg-success text-white py-1 px-2 fw-bold" style="font-size:0.8rem;">👑 當月消費會員 TOP 3</div>
+            <ul id="topMemberSpentList" class="list-group list-group-flush small">
+              <li class="list-group-item text-center text-muted py-1">尚無資料</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- 每周平均消費 -->
+      <div class="card shadow-sm mb-2">
+        <div class="card-header bg-white py-1 px-2 fw-bold" style="font-size:0.8rem;">📅 當月週一～週日平均消費</div>
+        <div class="card-body p-1">
+          <div class="table-responsive">
+            <table class="table table-bordered text-center m-0" style="font-size: 0.8rem;">
+              <thead class="table-light">
+                <tr><th>週一</th><th>週二</th><th>週三</th><th>週四</th><th>週五</th><th>週六</th><th>週日</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td id="avgW1" class="fw-bold text-primary">$0</td>
+                  <td id="avgW2" class="fw-bold text-primary">$0</td>
+                  <td id="avgW3" class="fw-bold text-primary">$0</td>
+                  <td id="avgW4" class="fw-bold text-primary">$0</td>
+                  <td id="avgW5" class="fw-bold text-primary">$0</td>
+                  <td id="avgW6" class="fw-bold text-primary">$0</td>
+                  <td id="avgW7" class="fw-bold text-primary">$0</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 每小時：男女及總平均消費 / 各年齡層平均消費 (Tab頁籤整併) -->
+      <div class="card shadow-sm">
+        <div class="card-header bg-white py-1 px-2 d-flex justify-content-between align-items-center">
+          <span class="fw-bold" style="font-size:0.8rem;">⚡ 每小時消費分析</span>
+          <ul class="nav nav-tabs card-header-tabs" id="hourlyTabs" role="tablist" style="font-size: 0.75rem; border-bottom: none;">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active py-1 px-2 fw-bold text-dark bg-warning bg-opacity-25" id="gender-tab" data-bs-toggle="tab" data-bs-target="#genderContent" type="button" role="tab">⚡ 男女及總平均</button>
+            </li>
+            <li class="nav-item ms-1" role="presentation">
+              <button class="nav-link py-1 px-2 fw-bold text-dark bg-info bg-opacity-25" id="age-tab" data-bs-toggle="tab" data-bs-target="#ageContent" type="button" role="tab">🎯 各年齡層平均</button>
+            </li>
+          </ul>
+        </div>
+        <div class="card-body p-0">
+          <div class="tab-content" id="hourlyTabContent">
+            <!-- 男女及總平均 -->
+            <div class="tab-pane fade show active" id="genderContent" role="tabpanel" style="max-height: 180px; overflow-y: auto;">
+              <table class="table table-striped table-bordered text-center m-0" style="font-size: 0.75rem;">
+                <thead class="table-warning sticky-top">
+                  <tr><th>時段</th><th>男平均</th><th>女平均</th><th>總加總平均</th></tr>
+                </thead>
+                <tbody id="hourlyGenderTbody">
+                  <tr><td colspan="4" class="text-muted py-2">請先選擇月份查詢</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <!-- 各年齡層平均 -->
+            <div class="tab-pane fade" id="ageContent" role="tabpanel" style="max-height: 180px; overflow-y: auto;">
+              <table class="table table-striped table-bordered text-center m-0" style="font-size: 0.75rem;">
+                <thead class="table-info sticky-top">
+                  <tr><th>時段</th><th>&le;20歲</th><th>21-30</th><th>31-40</th><th>41-50</th><th>&ge;51歲</th></tr>
+                </thead>
+                <tbody id="hourlyAgeTbody">
+                  <tr><td colspan="6" class="text-muted py-2">請先選擇月份查詢</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    
+  </div>
+</div>
+<!-- 底部導覽列 -->
+<div id="posBottomNav" class="pos-nav d-none justify-content-around text-center">
+  <button class="pos-nav-btn active" onclick="posNav('PosMain', this)">💳 會員交易</button>
+  <button class="pos-nav-btn" onclick="posNav('AdminLottery', this)" id="navLottery">🎲 抽獎開獎<br><span style="font-size:0.6rem; color:#d9534f;">🔒 高管</span></button>
+  <button class="pos-nav-btn" onclick="posNav('AdminAuction', this)" id="navAuction">🔨 拍賣結標<br><span style="font-size:0.6rem; color:#d9534f;">🔒 高管</span></button>
+  <button class="pos-nav-btn" onclick="posNav('AdminPanel', this)" id="navPanel">⚙️ 後台管理<br><span style="font-size:0.6rem; color:#d9534f;">🔒 高管</span></button>
+  <button class="pos-nav-btn" onclick="posNav('Analytics', this)">📊 運營數據</button>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  const API_BASE = 'https://labulabu.kingbestow1116.workers.dev';
+  const SUPABASE_URL = 'https://xevxgbfamlrrylqkewlw.supabase.co/rest/v1';
+  const SUPABASE_ANON_KEY = 'sb_publishable_ozMXbsarnJauglO9QjAFdA_YNOIxNTU';
+  let currentMemberId = '';
+  let lotteryStatsCache = {}, auctionCache = {};
+  let productsCache = {}, codesCache = {}, membersCache = {}, announcementsCache = {}, settingsCache = {};
+  
+  let stagedLotteryFile = null;
+  let stagedAuctionFile = null;
+  let stagedProductFile = null;
+  let stagedAnnouncementFile = null;
+  
+  async function callApi(endpoint, method = 'GET', data = null) {
+    const options = { method, headers: { 'Content-Type': 'application/json' } };
+    if (data) options.body = JSON.stringify(data);
+    try {
+      const res = await fetch(`${API_BASE}${endpoint}`, options);
+      return await res.json();
+    } catch (err) {
+      return { success: false, message: '網路連線異常' };
+    }
+  }
+  
+  async function uploadStagedImage(file, folder = 'general') {
+    if (!file) return '';
+    const fileExt = file.name.includes('.') ? file.name.split('.').pop() : 'jpg';
+    const safeFilename = `img_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+    
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        try {
+          const base64Data = e.target.result.split(',')[1];
+          const res = await callApi('/api/upload-image', 'POST', {
+            filename: safeFilename,
+            filedata: base64Data,
+            contentType: file.type
+          });
+          if (res.success && res.publicUrl) {
+            resolve(res.publicUrl);
+          } else {
+            reject(new Error(res.message || '上傳失敗'));
+          }
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
+    });
+  }
+  function stageLotteryImage(input) {
+    if (input.files && input.files[0]) {
+      stagedLotteryFile = input.files[0];
+      document.getElementById('lotteryImagePreviewContainer').innerHTML = `<p class="text-success small m-0">已選擇檔案: ${stagedLotteryFile.name} (儲存時將自動上傳)</p>`;
+    }
+  }
+  function stageAuctionImage(input) {
+    if (input.files && input.files[0]) {
+      stagedAuctionFile = input.files[0];
+      document.getElementById('auctionImagePreviewContainer').innerHTML = `<p class="text-success small m-0">已選擇檔案: ${stagedAuctionFile.name} (儲存時將自動上傳)</p>`;
+    }
+  }
+  function stageProductImage(input) {
+    if (input.files && input.files[0]) {
+      stagedProductFile = input.files[0];
+      document.getElementById('prodImagePreviewContainer').innerHTML = `<p class="text-success small m-0">已選擇檔案: ${stagedProductFile.name} (儲存時將自動上傳)</p>`;
+    }
+  }
+  function stageAnnouncementImage(input) {
+    if (input.files && input.files[0]) {
+      stagedAnnouncementFile = input.files[0];
+      document.getElementById('annImagePreviewContainer').innerHTML = `<p class="text-success small m-0">已選擇檔案: ${stagedAnnouncementFile.name} (儲存時將自動上傳)</p>`;
+    }
+  }
+  
+  function maskName(name) {
+    if (!name || name === '未填寫') return '未填寫';
+    if (isHighAuthUnlocked()) return name;
+    return name.charAt(0) + '**';
+  }
+  
+  function maskPhone(phone) {
+    if (!phone) return '---';
+    if (isHighAuthUnlocked()) return phone;
+    if (phone.length >= 7) {
+      return phone.substring(0, 4) + '***' + phone.substring(phone.length - 3);
+    }
+    return '***';
+  }
+  
+  function isHighAuthUnlocked() {
+    return localStorage.getItem('raibu_high_auth') === 'true';
+  }
+  
+  function updateAuthUI() {
+    let badge = document.getElementById('authBadge');
+    let btn = document.getElementById('btnToggleHighAuth');
+    if (isHighAuthUnlocked()) {
+      badge.className = 'badge bg-success';
+      badge.innerText = '⭐ 高級管理員模式 (個資完整解鎖)';
+      btn.className = 'btn btn-outline-danger btn-sm py-0 px-2';
+      btn.innerText = '🔒 鎖定高管';
+    } else {
+      badge.className = 'badge bg-secondary';
+      badge.innerText = '一般店員模式 (個資已遮罩)';
+      btn.className = 'btn btn-outline-warning btn-sm py-0 px-2';
+      btn.innerText = '🔓 解鎖高級管理員';
+    }
+  }
+  
+  async function toggleHighAuthModal() {
+    if (isHighAuthUnlocked()) {
+      if (confirm('確定要鎖定高級管理員權限嗎？')) {
+        localStorage.removeItem('raibu_high_auth');
+        updateAuthUI();
+        alert('已切回一般店員權限！');
+        let activePage = document.querySelector('.page-section.active')?.id;
+        if (['pageAdminLottery', 'pageAdminAuction', 'pageAdminPanel'].includes(activePage)) {
+          posNav('PosMain', document.querySelector('.pos-nav-btn'));
+        }
+      }
+    } else {
+      let pwd = prompt('請輸入「高級管理員登入密碼」：');
+      if (!pwd) return;
+      let res = await callApi('/api/system_settings');
+      if (!res.success || !res.system_settings) return alert('無法驗證密碼！');
+      let targetSetting = res.system_settings.find(s => s.setting_key === '高級管理員登入密碼');
+      let correctPwd = targetSetting ? targetSetting.value || targetSetting.setting_value : '1234';
+      if (pwd.trim() === String(correctPwd).trim()) {
+        localStorage.setItem('raibu_high_auth', 'true');
+        updateAuthUI();
+        alert('⭐ 高級管理員解鎖成功！');
+      } else {
+        alert('密碼錯誤！');
+      }
+    }
+  }
+  
+  window.onload = function() {
+    if (localStorage.getItem('raibu_pos_auth') === 'true') {
+      showStaffApp();
+    }
+    let now = new Date();
+    let year = now.getFullYear();
+    let month = String(now.getMonth() + 1).padStart(2, '0');
+    let monthInput = document.getElementById('analyticsMonthInput');
+    if (monthInput && !monthInput.value) {
+      monthInput.value = `${year}-${month}`;
+    }
+    let savedExtraCoins = localStorage.getItem('raibu_pos_extra_coins');
+    if (savedExtraCoins !== null) {
+      document.getElementById('transExtraCoins').value = savedExtraCoins;
+    }
+    document.getElementById('transExtraCoins').addEventListener('input', function() {
+      localStorage.setItem('raibu_pos_extra_coins', this.value);
+    });
+  };
+  
+  async function verifyAdmin() {
+    let pwd = document.getElementById('adminPassword').value;
+    if (!pwd) return alert('請輸入密碼！');
+    let res = await callApi('/api/system_settings');
+    if (!res.success || !res.system_settings) return alert('無法連線至系統設定！');
+    let targetSetting = res.system_settings.find(s => s.setting_key === '管理員登入密碼');
+    let correctPwd = targetSetting ? targetSetting.value || targetSetting.setting_value : '1234';
+    if (pwd.trim() === String(correctPwd).trim()) {
+      localStorage.setItem('raibu_pos_auth', 'true');
+      showStaffApp();
+    } else {
+      alert('管理員密碼驗證失敗！');
+    }
+  }
+  
+  function staffLogout() {
+    localStorage.removeItem('raibu_pos_auth');
+    localStorage.removeItem('raibu_high_auth');
+    location.reload();
+  }
+  
+  function showStaffApp() {
+    document.getElementById('loginBlock').style.display = 'none';
+    document.getElementById('mainBlock').style.display = 'block';
+    let nav = document.getElementById('posBottomNav'); 
+    nav.classList.remove('d-none'); nav.classList.add('d-flex');
+    updateAuthUI();
+    loadRecentStoreLogs();
+    loadLotteryManagementData();
+    loadAuctionManagementData();
+    loadAllAdminCaches();
+  }
+  
+  async function searchMember() {
+    let kw = document.getElementById('searchInput').value.trim();
+    if (!kw) return alert('請輸入查詢關鍵字！');
+    let res = await callApi('/api/pos/search', 'POST', { keyword: kw });
+    if (!res.success) {
+      document.getElementById('posStatusMsg').innerText = res.message;
+      document.getElementById('memberPanel').style.display = 'none';
+      return;
+    }
+    let m = res.member;
+    currentMemberId = m.member_id;
+    document.getElementById('mId').innerText = m.member_id;
+    document.getElementById('mName').innerText = maskName(m.name);
+    document.getElementById('mPhone').innerText = maskPhone(m.phone);
+    document.getElementById('mBirthday').innerText = m.birthdate ? String(m.birthdate).substring(0, 10) : '未填';
+    
+    let memberNotes = m.notes ? m.notes : '無';
+    document.getElementById('notesViewMode').innerText = memberNotes;
+    document.getElementById('notesInput').value = m.notes ? m.notes : '';
+    document.getElementById('notesViewMode').style.display = 'block';
+    document.getElementById('notesEditMode').style.display = 'none';
+    document.getElementById('btnEditNotes').innerText = '編輯';
+    document.getElementById('mVip').innerText = m.vip_level || '一般會員';
+    document.getElementById('mPoints').innerText = (m.available_coins || 0) + ' 幣';
+    document.getElementById('mSpent').innerText = '$' + (m.total_spent || 0);
+    
+    let listEl = document.getElementById('couponList');
+    listEl.innerHTML = '';
+    let coupons = res.coupons || [];
+    if (coupons.length === 0) {
+      listEl.innerHTML = '<div class="text-muted text-center py-2 small">無待核銷優惠券</div>';
+      document.getElementById('btnRedeem').disabled = true;
+    } else {
+      coupons.forEach(c => {
+        let detailsBadge = '';
+        if (Number(c.coin_cost) > 0) detailsBadge += `<span class="badge bg-warning text-dark ms-1" style="font-size:0.7rem;">${c.coin_cost} 幣</span>`;
+        if (Number(c.add_amount) > 0) detailsBadge += `<span class="badge bg-danger ms-1" style="font-size:0.7rem;">加購 $${c.add_amount}</span>`;
+        
+        listEl.innerHTML += `
+          <label class="list-group-item coupon-item d-flex align-items-center py-1">
+            <input class="form-check-input coupon-checkbox me-2" type="checkbox" value="${c.coupon_code}">
+            <div class="small w-100">
+              <div class="d-flex justify-content-between align-items-center">
+                <strong>${c.title}</strong>
+                <div>${detailsBadge}</div>
+              </div>
+              <span class="text-muted text-primary fw-bold" style="font-size:0.75rem;">序號: ${c.coupon_code}</span>
+            </div>
+          </label>
+        `;
+      });
+      document.getElementById('btnRedeem').disabled = false;
+    }
+    document.getElementById('memberPanel').style.display = 'block';
+    document.getElementById('posStatusMsg').innerText = '已成功載入會員';
+  }
+  
+  function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('memberPanel').style.display = 'none';
+    document.getElementById('posStatusMsg').innerText = '請搜尋會員';
+    currentMemberId = '';
+  }
+  
+  function fillSearchInput(memberId) {
+    document.getElementById('searchInput').value = memberId;
+    searchMember();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  async function submitTransaction() {
+    if (!currentMemberId) return alert('請先搜尋並選擇會員！');
+    let type = document.getElementById('transType').value;
+    let amount = document.getElementById('transAmount').value;
+    let multiplier = document.getElementById('transMultiplier').value;
+    let extraAddCoins = document.getElementById('transExtraCoins').value;
+    let reason = document.getElementById('transReason').value;
+    if (!amount || Number(amount) <= 0) return alert('請輸入有效的金額！');
+    let res = await callApi('/api/pos/transaction', 'POST', {
+      memberId: currentMemberId, 
+      type, 
+      amount: Number(amount), 
+      multiplier: Number(multiplier), 
+      extraAddCoins: Number(extraAddCoins) || 0,
+      reason
+    });
+    
+    let msgEl = document.getElementById('transResultMsg');
+    msgEl.innerText = res.message;
+    msgEl.className = res.success ? 'fw-bold small text-success' : 'fw-bold small text-danger';
+    if (res.success) {
+      document.getElementById('mPoints').innerText = res.newPoints + ' 幣';
+      document.getElementById('mSpent').innerText = '$' + res.newSpent;
+      document.getElementById('transAmount').value = '';
+      document.getElementById('transReason').value = '';
+      loadRecentStoreLogs();
+    }
+  }
+  
+  async function redeemSelectedCoupons() {
+    let checked = document.querySelectorAll('.coupon-checkbox:checked');
+    if (checked.length === 0) return alert('請勾選要核銷的優惠券！');
+    let ticketIds = Array.from(checked).map(cb => cb.value);
+    let res = await callApi('/api/pos/redeem-coupons', 'POST', { ticketIds });
+    alert(res.message);
+    if (res.success) {
+      searchMember();
+      loadRecentStoreLogs();
+    }
+  }
+  
+  async function loadRecentStoreLogs() {
+    let res = await callApi('/api/pos/recent-logs');
+    let listEl = document.getElementById('storeRecentLogList');
+    if (!res.success || !res.logs || res.logs.length === 0) {
+      listEl.innerHTML = '<li class="list-group-item text-center text-muted py-1">無最近異動紀錄</li>';
+      return;
+    }
+    listEl.innerHTML = '';
+    res.logs.forEach(l => {
+      let colorClass = l.amount > 0 ? 'text-success' : 'text-danger';
+      listEl.innerHTML += `
+        <li class="list-group-item py-1 px-2 d-flex justify-content-between align-items-center">
+          <div class="text-truncate me-2" style="font-size:0.8rem;">
+            <span class="badge bg-secondary me-1" style="font-size:0.65rem;">${l.type}</span> 
+            <span class="clickable-id fw-bold" onclick="fillSearchInput('${l.memberId}')" title="點擊帶入查詢">${l.memberId}</span>: 
+            <span class="text-dark">${l.reason}</span>
+          </div>
+          <div class="text-end text-nowrap">
+            <span class="${colorClass} fw-bold">${l.amount > 0 ? '+' + l.amount : l.amount} 幣</span>
+            <span class="text-muted ms-1" style="font-size:0.65rem;">(${l.time})</span>
+          </div>
+        </li>
+      `;
+    });
+  }
+  
+  async function loadAuctionManagementData() {
+    let res = await callApi('/api/auctions');
+    if (!res.success || !res.auctions) return;
+    auctionCache = {};
+    res.auctions.forEach(a => { auctionCache[a.auction_id] = a; });
+    let sortedAuctions = res.auctions.sort((a, b) => {
+      let idA = parseInt(String(a.auction_id || '0').replace(/\D/g, ''), 10) || 0;
+      let idB = parseInt(String(b.auction_id || '0').replace(/\D/g, ''), 10) || 0;
+      return idB - idA;
+    });
+    let editSel = document.getElementById('editAuctionSelect');
+    let closeSel = document.getElementById('closeAuctionSelect');
+    let histSel = document.getElementById('historyAuctionSelect');
+    editSel.innerHTML = '<option value="">-- 選擇拍賣品以編輯 --</option>';
+    closeSel.innerHTML = '<option value="">-- 請選擇進行中拍賣品 --</option>';
+    histSel.innerHTML = '<option value="">-- 請選擇歷史拍賣品 --</option>';
+    sortedAuctions.forEach(av => {
+      let status = String(av.status || '').trim();
+      let optHtml = `<option value="${av.auction_id}">[${av.auction_id}] ${av.title} (${status})</option>`;
+      editSel.innerHTML += optHtml;
+      if (status.includes('進行中')) { closeSel.innerHTML += optHtml; } else { histSel.innerHTML += optHtml; }
+    });
+  }
+  
+  async function prepareNewAuction() {
+    let res = await callApi('/api/auctions');
+    let nextNum = (res.auctions ? res.auctions.length : 0) + 1;
+    document.getElementById('auctionId').value = 'A' + String(nextNum).padStart(3, '0');
+    document.getElementById('auctionTitle').value = '';
+    document.getElementById('auctionStartPrice').value = '500';
+    document.getElementById('auctionMinIncrement').value = '50';
+    document.getElementById('auctionStart').value = '';
+    document.getElementById('auctionEnd').value = '';
+    document.getElementById('auctionDisplayStatus').value = '顯示';
+    document.getElementById('auctionImageId').value = '';
+    document.getElementById('auctionImageFile').value = '';
+    document.getElementById('auctionImagePreviewContainer').innerHTML = '';
+    document.getElementById('auctionDesc').value = '';
+    stagedAuctionFile = null;
+    document.getElementById('btnDeleteAuction').disabled = true;
+  }
+  
+  function loadAuctionToForm() {
+    let id = document.getElementById('editAuctionSelect').value;
+    if (!id || !auctionCache[id]) return;
+    let av = auctionCache[id];
+    document.getElementById('auctionId').value = av.auction_id;
+    document.getElementById('auctionTitle').value = av.title || '';
+    document.getElementById('auctionStartPrice').value = av.start_price || 500;
+    document.getElementById('auctionMinIncrement').value = av.min_increment || 50;
+    document.getElementById('auctionStart').value = av.start_time ? av.start_time.substring(0, 16) : '';
+    document.getElementById('auctionEnd').value = av.end_time ? av.end_time.substring(0, 16) : '';
+    document.getElementById('auctionDisplayStatus').value = av.display_status || '顯示';
+    document.getElementById('auctionImageId').value = av.image_id || '';
+    document.getElementById('auctionImageFile').value = '';
+    document.getElementById('auctionImagePreviewContainer').innerHTML = av.image_id ? `<img src="${av.image_id}" class="preview-img">` : '';
+    document.getElementById('auctionDesc').value = av.description || '';
+    stagedAuctionFile = null;
+    document.getElementById('btnDeleteAuction').disabled = false;
+  }
+  
+  async function saveAuctionEvent() {
+    let imageId = document.getElementById('auctionImageId').value;
+    if (stagedAuctionFile) {
+      try {
+        imageId = await uploadStagedImage(stagedAuctionFile, 'auction');
+        document.getElementById('auctionImageId').value = imageId;
+      } catch (err) { alert('圖片上傳失敗：' + err.message); return; }
+    }
+    let data = {
+      auction_id: document.getElementById('auctionId').value,
+      title: document.getElementById('auctionTitle').value,
+      start_price: Number(document.getElementById('auctionStartPrice').value) || 500,
+      min_increment: Number(document.getElementById('auctionMinIncrement').value) || 50,
+      start_time: document.getElementById('auctionStart').value ? new Date(document.getElementById('auctionStart').value).toISOString() : null,
+      end_time: document.getElementById('auctionEnd').value ? new Date(document.getElementById('auctionEnd').value).toISOString() : null,
+      display_status: document.getElementById('auctionDisplayStatus').value,
+      image_id: imageId,
+      description: document.getElementById('auctionDesc').value,
+      status: '進行中'
+    };
+    if (!data.auction_id || !data.title) return alert('拍賣品 ID 與標題不得為空！');
+    let res = await callApi('/api/auctions/upsert', 'POST', data);
+    alert(res.message);
+    if (res.success) { stagedAuctionFile = null; loadAuctionManagementData(); }
+  }
+  
+  async function deleteAuctionEvent() {
+    let auctionId = document.getElementById('auctionId').value;
+    if (!auctionId) return alert('請選擇拍賣品！');
+    if (confirm(`確定要刪除拍賣品 [${auctionId}] 嗎？`)) {
+      let res = await callApi('/api/auctions/delete', 'POST', { auctionId });
+      alert(res.message);
+      if (res.success) { prepareNewAuction(); loadAuctionManagementData(); }
+    }
+  }
+  
+  function onCloseAuctionSelectChange() {
+    let id = document.getElementById('closeAuctionSelect').value;
+    let box = document.getElementById('closeAuctionInfoBox');
+    let btn = document.getElementById('btnExecuteCloseAuction');
+    if (!id || !auctionCache[id]) { box.style.display = 'none'; btn.disabled = true; return; }
+    let av = auctionCache[id];
+    document.getElementById('closeImgBox').innerHTML = av.image_id ? `<img src="${av.image_id}" class="preview-img">` : '';
+    document.getElementById('closeStartTime').innerText = av.start_time ? av.start_time.replace('T', ' ').substring(0, 16) : '未設定';
+    document.getElementById('closeEndTime').innerText = av.end_time ? av.end_time.replace('T', ' ').substring(0, 16) : '未設定';
+    document.getElementById('closeStartPrice').innerText = av.start_price || 0;
+    document.getElementById('closeCurrentBid').innerText = av.current_price || av.start_price || 0;
+    document.getElementById('closeHighestBidder').innerText = av.highest_bidder_id || '無人出價';
+    document.getElementById('closeAuctionDesc').innerText = '說明：' + (av.description || '無');
+    box.style.display = 'block';
+    btn.disabled = false;
+  }
+  
+  async function executeCloseAuction() {
+    let id = document.getElementById('closeAuctionSelect').value;
+    if (!id) return alert('請選擇拍賣品！');
+    if (confirm('確定要執行手動結標嗎？系統將自動判定得標者、扣除凍結點數並派發券。')) {
+      let res = await callApi('/api/admin/auction/close', 'POST', { auctionId: id });
+      alert(res.message);
+      if (res.success) {
+        document.getElementById('closeAuctionInfoBox').style.display = 'none';
+        document.getElementById('btnExecuteCloseAuction').disabled = true;
+        loadAuctionManagementData();
+      }
+    }
+  }
+  
+  function onHistoryAuctionSelectChange() {
+    let id = document.getElementById('historyAuctionSelect').value;
+    let box = document.getElementById('historyAuctionInfoBox');
+    if (!id || !auctionCache[id]) { box.style.display = 'none'; return; }
+    let av = auctionCache[id];
+    document.getElementById('historyAuctionImgBox').innerHTML = av.image_id ? `<img src="${av.image_id}" class="preview-img">` : '';
+    document.getElementById('historyAuctionStatus').innerText = av.status || '已結標';
+    document.getElementById('historyAuctionStartTime').innerText = av.start_time ? av.start_time.replace('T', ' ').substring(0, 16) : '未設定';
+    document.getElementById('historyAuctionEndTime').innerText = av.end_time ? av.end_time.replace('T', ' ').substring(0, 16) : '未設定';
+    document.getElementById('historyAuctionFinalPrice').innerText = av.current_price || av.start_price || 0;
+    document.getElementById('historyAuctionDesc').innerText = '說明：' + (av.description || '無');
+    let winner = av.winner || {};
+    document.getElementById('historyWinnerId').innerText = winner.member_id || av.highest_bidder_id || '無';
+    document.getElementById('historyWinnerName').innerText = maskName(winner.name || '無（流標）');
+    document.getElementById('historyWinnerGender').innerText = winner.gender || '-';
+    document.getElementById('historyWinnerPhone').innerText = maskPhone(winner.phone || '-');
+    box.style.display = 'block';
+  }
+  
+  async function loadLotteryManagementData() {
+    let res = await callApi('/api/admin/lottery-stats');
+    if (!res.success || !res.stats) return;
+    lotteryStatsCache = res.stats;
+    let sortedEvents = Object.values(lotteryStatsCache).sort((a, b) => {
+      let idA = parseInt(String(a.event_id || '0').replace(/\D/g, ''), 10) || 0;
+      let idB = parseInt(String(b.event_id || '0').replace(/\D/g, ''), 10) || 0;
+      return idB - idA;
+    });
+    let editSel = document.getElementById('editLotterySelect');
+    let drawSel = document.getElementById('drawLotterySelect');
+    let histSel = document.getElementById('historyLotterySelect');
+    editSel.innerHTML = '<option value="">-- 選擇現有活動以編輯 --</option>';
+    drawSel.innerHTML = '<option value="">-- 請選擇進行中活動 --</option>';
+    histSel.innerHTML = '<option value="">-- 請選擇歷史活動 --</option>';
+    sortedEvents.forEach(ev => {
+      let status = String(ev.status || '').trim();
+      let optHtml = `<option value="${ev.event_id}">[${ev.event_id}] ${ev.title} (${status})</option>`;
+      editSel.innerHTML += optHtml;
+      if (status.includes('進行') || status.includes('上架')) { drawSel.innerHTML += optHtml; } else { histSel.innerHTML += optHtml; }
+    });
+  }
+  
+  async function prepareNewLottery() {
+    let res = await callApi('/api/admin/next-lottery-id');
+    if (res.success) {
+      document.getElementById('lotteryId').value = res.nextId;
+      document.getElementById('lotteryTitle').value = '';
+      document.getElementById('lotteryCost').value = 20;
+      document.getElementById('lotteryLimit').value = 1;
+      document.getElementById('lotteryQuota').value = 1;
+      document.getElementById('lotteryStart').value = '';
+      document.getElementById('lotteryEnd').value = '';
+      document.getElementById('lotteryImageId').value = '';
+      document.getElementById('lotteryImageFile').value = '';
+      document.getElementById('lotteryImagePreviewContainer').innerHTML = '';
+      document.getElementById('lotteryRules').value = '';
+      stagedLotteryFile = null;
+      document.getElementById('editLotterySelect').value = '';
+      document.getElementById('btnDeleteLottery').disabled = true;
+    }
+  }
+  
+  function loadLotteryToForm() {
+    let id = document.getElementById('editLotterySelect').value;
+    if (!id || !lotteryStatsCache[id]) { document.getElementById('btnDeleteLottery').disabled = true; return; }
+    let ev = lotteryStatsCache[id];
+    document.getElementById('lotteryId').value = ev.event_id;
+    document.getElementById('lotteryTitle').value = ev.title || '';
+    document.getElementById('lotteryCost').value = ev.cost_coins || 20;
+    document.getElementById('lotteryLimit').value = ev.per_user_limit || 1;
+    document.getElementById('lotteryQuota').value = ev.winner_quota || 1;
+    document.getElementById('lotteryStart').value = ev.start_time ? ev.start_time.substring(0, 16) : '';
+    document.getElementById('lotteryEnd').value = ev.end_time ? ev.end_time.substring(0, 16) : '';
+    document.getElementById('lotteryImageId').value = ev.image_id || '';
+    document.getElementById('lotteryImageFile').value = '';
+    document.getElementById('lotteryImagePreviewContainer').innerHTML = ev.image_id ? `<img src="${ev.image_id}" class="preview-img">` : '';
+    document.getElementById('lotteryRules').value = ev.rules || '';
+    stagedLotteryFile = null;
+    document.getElementById('btnDeleteLottery').disabled = false;
+  }
+  
+  async function saveLotteryEvent() {
+    let eventId = document.getElementById('lotteryId').value.trim();
+    if (!eventId) { await prepareNewLottery(); eventId = document.getElementById('lotteryId').value.trim(); }
+    let title = document.getElementById('lotteryTitle').value.trim();
+    if (!title) return alert('請輸入活動標題！');
+    let imageId = document.getElementById('lotteryImageId').value;
+    if (stagedLotteryFile) {
+      try {
+        imageId = await uploadStagedImage(stagedLotteryFile, 'lottery');
+        document.getElementById('lotteryImageId').value = imageId;
+      } catch (err) { alert('圖片上傳失敗：' + err.message); return; }
+    }
+    let data = {
+      event_id: eventId,
+      title: title,
+      cost_coins: Number(document.getElementById('lotteryCost').value) || 20,
+      per_user_limit: Number(document.getElementById('lotteryLimit').value) || 1,
+      winner_quota: Number(document.getElementById('lotteryQuota').value) || 1,
+      start_time: document.getElementById('lotteryStart').value ? new Date(document.getElementById('lotteryStart').value).toISOString() : null,
+      end_time: document.getElementById('lotteryEnd').value ? new Date(document.getElementById('lotteryEnd').value).toISOString() : null,
+      display_status: '顯示',
+      status: '進行中',
+      image_id: imageId,
+      rules: document.getElementById('lotteryRules').value.trim()
+    };
+    let res = await callApi('/api/admin/lottery/upsert', 'POST', data);
+    alert(res.message);
+    if (res.success) { stagedLotteryFile = null; loadLotteryManagementData(); }
+  }
+  
+  async function deleteLotteryEvent() {
+    let eventId = document.getElementById('lotteryId').value.trim();
+    if (!eventId) return alert('未選擇活動！');
+    if (confirm(`確定要刪除抽獎活動 [${eventId}] 嗎？`)) {
+      let res = await callApi('/api/admin/lottery/delete', 'POST', { eventId });
+      alert(res.message);
+      if (res.success) { prepareNewLottery(); loadLotteryManagementData(); }
+    }
+  }
+  
+  function onDrawSelectChange() {
+    let id = document.getElementById('drawLotterySelect').value;
+    let box = document.getElementById('drawInfoBox');
+    let btn = document.getElementById('btnExecuteDraw');
+    if (!id || !lotteryStatsCache[id]) { box.style.display = 'none'; btn.disabled = true; return; }
+    let ev = lotteryStatsCache[id];
+    document.getElementById('drawImgBox').innerHTML = ev.image_id ? `<img src="${ev.image_id}" class="preview-img">` : '';
+    document.getElementById('drawStartTime').innerText = ev.start_time ? ev.start_time.replace('T', ' ').substring(0, 16) : '未設定';
+    document.getElementById('drawEndTime').innerText = ev.end_time ? ev.end_time.replace('T', ' ').substring(0, 16) : '未設定';
+    document.getElementById('drawQuota').innerText = ev.winner_quota || 1;
+    document.getElementById('drawParticipants').innerText = ev.totalParticipants || 0;
+    document.getElementById('drawTotalCoins').innerText = ev.totalCoinsConsumed || 0;
+    document.getElementById('drawRules').innerText = '活動說明：' + (ev.rules || '無');
+    box.style.display = 'block';
+    btn.disabled = false;
+  }
+  
+  async function executeDrawLottery() {
+    let id = document.getElementById('drawLotterySelect').value;
+    if (!id) return alert('請選擇活動！');
+    if (confirm('確定執行隨機開獎、自動派發兌換券並關閉此活動？')) {
+      let res = await callApi('/api/admin/lottery/draw', 'POST', { eventId: id });
+      alert(res.message);
+      if (res.success) {
+        document.getElementById('drawInfoBox').style.display = 'none';
+        document.getElementById('btnExecuteDraw').disabled = true;
+        loadLotteryManagementData();
+      }
+    }
+  }
+  
+  function onHistorySelectChange() {
+    let id = document.getElementById('historyLotterySelect').value;
+    let box = document.getElementById('historyInfoBox');
+    if (!id || !lotteryStatsCache[id]) { box.style.display = 'none'; return; }
+    let ev = lotteryStatsCache[id];
+    document.getElementById('historyImgBox').innerHTML = ev.image_id ? `<img src="${ev.image_id}" class="preview-img">` : '';
+    document.getElementById('historyStatus').innerText = ev.status || '已結束';
+    document.getElementById('historyStartTime').innerText = ev.start_time ? ev.start_time.replace('T', ' ').substring(0, 16) : '未設定';
+    document.getElementById('historyEndTime').innerText = ev.end_time ? ev.end_time.replace('T', ' ').substring(0, 16) : '未設定';
+    document.getElementById('historyQuota').innerText = ev.winner_quota || 1;
+    document.getElementById('historyParticipants').innerText = ev.totalParticipants || 0;
+    document.getElementById('historyTotalCoins').innerText = ev.totalCoinsConsumed || 0;
+    document.getElementById('historyRules').innerText = ev.rules || '無內容';
+    let tbody = document.getElementById('historyWinnersTableBody');
+    tbody.innerHTML = '';
+    let winners = (ev.detailedRecords || []).filter(r => r.winStatus === '中獎');
+    if (winners.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-muted">此活動無中獎紀錄</td></tr>';
+    } else {
+      winners.forEach(w => {
+        tbody.innerHTML += `<tr><td>${w.memberId}</td><td>${maskName(w.name)}</td><td>${w.gender}</td><td>${maskPhone(w.phone)}</td><td><span class="badge bg-success">中獎</span></td></tr>`;
+      });
+    }
+    box.style.display = 'block';
+  }
+  
+  async function loadAllAdminCaches() {
+    let pRes = await callApi('/api/products');
+    if (pRes.success && pRes.products) {
+      productsCache = {};
+      pRes.products.sort((a, b) => {
+        let idA = parseInt(String(a.product_id || '0').replace(/\D/g, ''), 10) || 0;
+        let idB = parseInt(String(b.product_id || '0').replace(/\D/g, ''), 10) || 0;
+        if (idA !== idB) return idA - idB;
+        return String(a.product_id).localeCompare(String(b.product_id));
+      });
+      pRes.products.forEach(p => { productsCache[p.product_id] = p; });
+      renderProductDropdown(pRes.products);
+    }
+    let cRes = await callApi('/api/virtual_codes');
+    if (cRes.success && cRes.virtual_codes) {
+      codesCache = {};
+      let activeSel = document.getElementById('adminActiveCodeSelect');
+      let closedSel = document.getElementById('adminClosedCodeSelect');
+      activeSel.innerHTML = '<option value="">-- 請選擇已啟用序號 --</option>';
+      closedSel.innerHTML = '<option value="">-- 請選擇已關閉序號 --</option>';
+      
+      cRes.virtual_codes.forEach(c => {
+        codesCache[c.code] = c;
+        let optText = `[${c.code}] 類型: ${c.reward_type} (內容: ${c.reward_value || '盲盒'})`;
+        let status = String(c.status || '').trim();
+        if (status === '啟用' || status === '') {
+          activeSel.options.add(new Option(optText, c.code));
+        } else {
+          closedSel.options.add(new Option(optText, c.code));
+        }
+      });
+    }
+    let mRes = await callApi('/api/members');
+    if (mRes.success && mRes.members) {
+      membersCache = {};
+      mRes.members.forEach(m => { membersCache[m.member_id] = m; });
+    }
+    let aRes = await callApi('/api/announcements');
+    if (aRes.success && aRes.announcements) {
+      let sel = document.getElementById('adminAnnouncementSelect'); sel.innerHTML = '<option value="">-- 請選擇公告 --</option>';
+      aRes.announcements.forEach(a => { announcementsCache[a.announcement_id] = a; sel.options.add(new Option(`[${a.announcement_id}] ${a.title}`, a.announcement_id)); });
+    }
+    let sRes = await callApi('/api/system_settings');
+    if (sRes.success && sRes.system_settings) {
+      let sel = document.getElementById('adminSettingSelect'); sel.innerHTML = '<option value="">-- 請選擇參數 --</option>';
+      sRes.system_settings.forEach(s => { settingsCache[s.setting_key] = s; sel.options.add(new Option(s.setting_key, s.setting_key)); });
+    }
+  }
+  function renderProductDropdown(productsList) {
+    let sel = document.getElementById('adminProductSelect');
+    sel.innerHTML = '<option value="">-- 請選擇商品 --</option>';
+    productsList.forEach(p => {
+      sel.options.add(new Option(`[${p.product_id}] ${p.name}`, p.product_id));
+    });
+  }
+  function filterProductDropdown() {
+    let keyword = document.getElementById('adminProductSearchInput').value.trim().toLowerCase();
+    let matchedProducts = Object.values(productsCache).filter(p => {
+      let pId = String(p.product_id || '').toLowerCase();
+      let pName = String(p.name || '').toLowerCase();
+      return pId.includes(keyword) || pName.includes(keyword);
+    });
+    renderProductDropdown(matchedProducts);
+    if (matchedProducts.length === 1) {
+      document.getElementById('adminProductSelect').value = matchedProducts[0].product_id;
+      loadProductFromDropdown();
+    }
+  }
+  
+  async function searchAdminMember() {
+    let kw = document.getElementById('adminMemberSearchInput').value.trim();
+    if (!kw) return alert('請輸入查詢關鍵字（電話、完整ID或末5碼）！');
+    let res = await callApi('/api/pos/search', 'POST', { keyword: kw });
+    if (!res.success || !res.member) {
+      alert('找不到符合條件的會員！');
+      document.getElementById('adminMemberFormContainer').style.display = 'none';
+      return;
+    }
+    let m = res.member;
+    document.getElementById('admMemberId').value = m.member_id;
+    document.getElementById('admMemberName').value = m.name || '';
+    document.getElementById('admMemberPhone').value = m.phone || '';
+    document.getElementById('admMemberGender').value = m.gender || '未指定';
+    document.getElementById('admMemberBirthday').value = m.birthdate ? String(m.birthdate).substring(0, 10) : '';
+    document.getElementById('admMemberPassword').value = m.password || '';
+    document.getElementById('admMemberCoins').value = m.available_coins || 0;
+    document.getElementById('admMemberSpent').value = m.total_spent || 0;
+    document.getElementById('admMemberVip').value = m.vip_level || '一般會員';
+    document.getElementById('admMemberStatus').value = m.status || '正常';
+    document.getElementById('admMemberNotes').value = m.notes || '';
+    document.getElementById('adminMemberFormContainer').style.display = 'block';
+  }
+  function switchAdminSub(name, btn) {
+    document.querySelectorAll('#pageAdminPanel .sub-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('#adminSubNav button').forEach(b => b.classList.remove('active'));
+    document.getElementById('subAdmin' + name).classList.add('active');
+    btn.classList.add('active');
+  }
+  
+  function prepareNewProduct() {
+    let nextId = 'P' + String(Object.keys(productsCache).length + 1).padStart(3, '0');
+    document.getElementById('prodId').value = nextId;
+    document.getElementById('prodName').value = '';
+    document.getElementById('prodPrice').value = 100;
+    document.getElementById('prodAddAmt').value = 0;
+    document.getElementById('prodTotalStock').value = 50;
+    document.getElementById('prodRemainingStock').value = 50;
+    document.getElementById('prodImageId').value = '';
+    document.getElementById('prodImageFile').value = '';
+    document.getElementById('prodImagePreviewContainer').innerHTML = '';
+    document.getElementById('prodDesc').value = '';
+    document.getElementById('adminProductSearchInput').value = '';
+    stagedProductFile = null;
+    document.getElementById('adminProductSelect').value = '';
+    document.getElementById('btnDeleteProduct').disabled = true;
+    renderProductDropdown(Object.values(productsCache));
+  }
+  
+  function loadProductFromDropdown() {
+    let id = document.getElementById('adminProductSelect').value;
+    if (!id || !productsCache[id]) {
+      document.getElementById('btnDeleteProduct').disabled = true;
+      return;
+    }
+    let p = productsCache[id];
+    document.getElementById('prodId').value = p.product_id;
+    document.getElementById('prodName').value = p.name || '';
+    document.getElementById('prodCategory').value = p.category || '兌換商品';
+    document.getElementById('prodPrice').value = p.price_coins || 0;
+    document.getElementById('prodAddAmt').value = p.add_amount || 0;
+    document.getElementById('prodTotalStock').value = p.total_stock || 50;
+    document.getElementById('prodRemainingStock').value = p.remaining_stock || 50;
+    document.getElementById('prodStatus').value = p.status || '上架';
+    document.getElementById('prodImageId').value = p.image_id || '';
+    document.getElementById('prodImageFile').value = '';
+    document.getElementById('prodImagePreviewContainer').innerHTML = p.image_id ? `<img src="${p.image_id}" class="preview-img">` : '';
+    document.getElementById('prodDesc').value = p.description || '';
+    stagedProductFile = null;
+    document.getElementById('btnDeleteProduct').disabled = false;
+  }
+  
+  async function deleteProduct() {
+    let productId = document.getElementById('prodId').value;
+    if (!productId) return alert('請先選擇要刪除的商品！');
+    if (confirm(`確定要刪除商品 [${productId}] 嗎？此動作無法復原。`)) {
+      let res = await callApi('/api/admin/products/delete', 'POST', { productId });
+      alert(res.message);
+      if (res.success) { prepareNewProduct(); loadAllAdminCaches(); }
+    }
+  }
+  
+  async function saveProduct() {
+    let imageId = document.getElementById('prodImageId').value;
+    if (stagedProductFile) {
+      try {
+        imageId = await uploadStagedImage(stagedProductFile, 'product');
+        document.getElementById('prodImageId').value = imageId;
+      } catch (err) { alert('商品圖片上傳失敗：' + err.message); return; }
+    }
+    let data = {
+      product_id: document.getElementById('prodId').value,
+      name: document.getElementById('prodName').value,
+      category: document.getElementById('prodCategory').value,
+      price_coins: Number(document.getElementById('prodPrice').value) || 0,
+      add_amount: Number(document.getElementById('prodAddAmt').value) || 0,
+      total_stock: Number(document.getElementById('prodTotalStock').value) || 50,
+      remaining_stock: Number(document.getElementById('prodRemainingStock').value) || 50,
+      status: document.getElementById('prodStatus').value,
+      image_id: imageId,
+      description: document.getElementById('prodDesc').value
+    };
+    let res = await callApi('/api/admin/products/upsert', 'POST', data);
+    alert(res.message);
+    if (res.success) { stagedProductFile = null; loadAllAdminCaches(); }
+  }
+  
+  function prepareNewCode() {
+    document.getElementById('codeKey').value = 'CODE' + Math.floor(Math.random() * 9000 + 1000);
+    document.getElementById('codeStatus').value = '啟用';
+    document.getElementById('codeRewardType').value = '點數';
+    document.getElementById('codeRewardVal').value = '50';
+    document.getElementById('codeTotalLimit').value = '99999';
+    document.getElementById('codePerUserLimit').value = '1';
+    document.getElementById('codeRandomPool').value = '';
+    document.getElementById('adminActiveCodeSelect').value = '';
+    document.getElementById('adminClosedCodeSelect').value = '';
+    document.getElementById('btnDeleteCode').disabled = true;
+  }
+  
+  function loadCodeToForm(codeId) {
+    if (!codeId) return;
+    if (event && event.target) {
+      if (event.target.id === 'adminActiveCodeSelect') {
+        document.getElementById('adminClosedCodeSelect').value = '';
+      } else if (event.target.id === 'adminClosedCodeSelect') {
+        document.getElementById('adminActiveCodeSelect').value = '';
+      }
+    }
+    if (!codesCache[codeId]) return;
+    let c = codesCache[codeId];
+    document.getElementById('codeKey').value = c.code;
+    document.getElementById('codeStatus').value = c.status || '啟用';
+    document.getElementById('codeRewardType').value = c.reward_type || '點數';
+    document.getElementById('codeRewardVal').value = c.reward_value || '';
+    document.getElementById('codeTotalLimit').value = c.total_limit !== undefined ? c.total_limit : 99999;
+    document.getElementById('codePerUserLimit').value = c.per_user_limit !== undefined ? c.per_user_limit : 1;
+    document.getElementById('codeRandomPool').value = c.random_pool || '';
+    document.getElementById('btnDeleteCode').disabled = false;
+  }
+  
+  async function deleteVirtualCode() {
+    let code = document.getElementById('codeKey').value;
+    if (!code) return alert('請先選擇要刪除的虛擬序號！');
+    if (confirm(`確定要刪除虛擬序號 [${code}] 嗎？`)) {
+      let res = await callApi('/api/admin/virtual-codes/delete', 'POST', { code });
+      alert(res.message);
+      if (res.success) { prepareNewCode(); loadAllAdminCaches(); }
+    }
+  }
+  
+  async function saveVirtualCode() {
+    let data = {
+      code: document.getElementById('codeKey').value,
+      status: document.getElementById('codeStatus').value,
+      reward_type: document.getElementById('codeRewardType').value,
+      reward_value: document.getElementById('codeRewardVal').value,
+      total_limit: Number(document.getElementById('codeTotalLimit').value) || 99999,
+      per_user_limit: Number(document.getElementById('codePerUserLimit').value) || 1,
+      random_pool: document.getElementById('codeRandomPool').value
+    };
+    let res = await callApi('/api/admin/virtual-codes/upsert', 'POST', data);
+    alert(res.message);
+    if (res.success) loadAllAdminCaches();
+  }
+  
+  async function saveMemberData() {
+    let data = {
+      member_id: document.getElementById('admMemberId').value,
+      name: document.getElementById('admMemberName').value,
+      phone: document.getElementById('admMemberPhone').value,
+      gender: document.getElementById('admMemberGender').value,
+      birthdate: document.getElementById('admMemberBirthday').value ? new Date(document.getElementById('admMemberBirthday').value).toISOString() : null,
+      password: document.getElementById('admMemberPassword').value,
+      available_coins: Number(document.getElementById('admMemberCoins').value) || 0,
+      total_spent: Number(document.getElementById('admMemberSpent').value) || 0,
+      vip_level: document.getElementById('admMemberVip').value,
+      status: document.getElementById('admMemberStatus').value,
+      notes: document.getElementById('admMemberNotes').value
+    };
+    let res = await callApi('/api/admin/members/upsert', 'POST', data);
+    alert(res.message);
+    if (res.success) loadAllAdminCaches();
+  }
+  
+  function prepareNewAnnouncement() {
+    let nextId = 'ANN' + String(Object.keys(announcementsCache).length + 1).padStart(3, '0');
+    document.getElementById('annId').value = nextId;
+    document.getElementById('annTitle').value = '';
+    document.getElementById('annStatus').value = '已發布';
+    document.getElementById('annIsPinned').value = '否';
+    document.getElementById('annContent').value = '';
+    document.getElementById('annFilterUnspentDays').value = -1;
+    document.getElementById('annFilterAgeRange').value = '全部';
+    document.getElementById('annFilterGender').value = '全部';
+    document.getElementById('annImageId').value = '';
+    document.getElementById('annImageFile').value = '';
+    document.getElementById('annImagePreviewContainer').innerHTML = '';
+    stagedAnnouncementFile = null;
+  }
+  
+  function loadAnnouncementToForm() {
+    let id = document.getElementById('adminAnnouncementSelect').value;
+    if (!id || !announcementsCache[id]) return;
+    let a = announcementsCache[id];
+    document.getElementById('annId').value = a.announcement_id;
+    document.getElementById('annTitle').value = a.title || '';
+    document.getElementById('annStatus').value = a.status || '已發布';
+    document.getElementById('annIsPinned').value = (a.is_pinned === true || a.is_pinned === '是') ? '是' : '否';
+    document.getElementById('annContent').value = a.content || '';
+    document.getElementById('annFilterUnspentDays').value = (a.filter_unspent_days !== null && a.filter_unspent_days !== undefined) ? a.filter_unspent_days : -1;
+    document.getElementById('annFilterAgeRange').value = a.filter_age_range || '全部';
+    document.getElementById('annFilterGender').value = a.filter_gender || '全部';
+    document.getElementById('annImageId').value = a.image_id || '';
+    document.getElementById('annImageFile').value = '';
+    document.getElementById('annImagePreviewContainer').innerHTML = a.image_id ? `<img src="${a.image_id}" class="preview-img">` : '';
+    stagedAnnouncementFile = null;
+  }
+  
+  async function saveAnnouncement() {
+    let imageId = document.getElementById('annImageId').value;
+    if (stagedAnnouncementFile) {
+      try {
+        imageId = await uploadStagedImage(stagedAnnouncementFile, 'announcement');
+        document.getElementById('annImageId').value = imageId;
+      } catch (err) { alert('公告圖片上傳失敗：' + err.message); return; }
+    }
+    let data = {
+      announcement_id: document.getElementById('annId').value,
+      title: document.getElementById('annTitle').value,
+      status: document.getElementById('annStatus').value,
+      is_pinned: document.getElementById('annIsPinned').value === '是',
+      content: document.getElementById('annContent').value,
+      filter_unspent_days: parseInt(document.getElementById('annFilterUnspentDays').value, 10) || -1,
+      filter_age_range: document.getElementById('annFilterAgeRange').value.trim() || '全部',
+      filter_gender: document.getElementById('annFilterGender').value || '全部',
+      image_id: imageId
+    };
+    let res = await callApi('/api/admin/announcements/upsert', 'POST', data);
+    alert(res.message);
+    if (res.success) { stagedAnnouncementFile = null; loadAllAdminCaches(); }
+  }
+  
+  function loadSettingToForm() {
+    let key = document.getElementById('adminSettingSelect').value;
+    if (!key || !settingsCache[key]) return;
+    let s = settingsCache[key];
+    document.getElementById('settingKey').value = s.setting_key;
+    document.getElementById('settingVal').value = s.value || s.setting_value || '';
+    document.getElementById('settingDesc').value = s.description || '';
+  }
+  
+  async function saveSystemSetting() {
+    let data = {
+      setting_key: document.getElementById('settingKey').value,
+      value: document.getElementById('settingVal').value,
+      description: document.getElementById('settingDesc').value
+    };
+    let res = await callApi('/api/admin/settings/upsert', 'POST', data);
+    alert(res.message);
+    if (res.success) loadAllAdminCaches();
+  }
+  
+  async function loadFullAnalyticsData() {
+    let monthVal = document.getElementById('analyticsMonthInput').value;
+    if (!monthVal) return alert('請選擇欲查詢的月份！');
+    try {
+      let [mRes, logRes, cRes] = await Promise.all([
+        fetch(`${SUPABASE_URL}/members?select=*`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }).then(r => r.json()),
+        fetch(`${SUPABASE_URL}/point_logs?select=*`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }).then(r => r.json()),
+        fetch(`${SUPABASE_URL}/coupons?select=*`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }).then(r => r.json())
+      ]);
+      let members = Array.isArray(mRes) ? mRes : [];
+      let logs = Array.isArray(logRes) ? logRes : [];
+      let coupons = Array.isArray(cRes) ? cRes : [];
+      let memberMap = {};
+      members.forEach(m => { memberMap[m.member_id] = m; });
+      
+      let totalMembers = members.length;
+      let validCoinTypes = ['消費', '扣除', '活動扣回', '活動加點'];
+      let totalCoinsIssued = logs.filter(l => validCoinTypes.includes(l.type)).reduce((sum, l) => sum + (Number(l.change_amount) || 0), 0);
+      let totalSpent = members.reduce((sum, m) => sum + (Number(m.total_spent) || 0), 0);
+      let totalRemainingCoins = members.reduce((sum, m) => sum + (Number(m.available_coins) || 0), 0);
+      let [yearStr, monthStr] = monthVal.split('-');
+      let monthMembers = members.filter(m => m.created_at && m.created_at.startsWith(monthVal)).length;
+      let monthLogs = logs.filter(l => l.created_at && l.created_at.startsWith(monthVal));
+      let monthCoinsIssued = monthLogs.filter(l => validCoinTypes.includes(l.type)).reduce((sum, l) => sum + (Number(l.change_amount) || 0), 0);
+      let monthSpent = monthLogs.filter(l => ['消費', '扣除'].includes(l.type)).reduce((sum, l) => sum + (Number(l.spent_amount) || Number(l.amount) || 0), 0);
+      let monthBirthdayCount = members.filter(m => {
+        if (!m.birthdate) return false;
+        let bDate = new Date(m.birthdate);
+        return !isNaN(bDate.getTime()) && (bDate.getMonth() + 1) === Number(monthStr);
+      }).length;
+      
+      document.getElementById('statTotalMembers').innerText = totalMembers + '人';
+      document.getElementById('statTotalCoins').innerText = totalCoinsIssued.toLocaleString() + '幣';
+      document.getElementById('statTotalSpent').innerText = '$' + totalSpent.toLocaleString();
+      document.getElementById('statTotalRemainingCoins').innerText = totalRemainingCoins.toLocaleString() + '幣';
+      document.getElementById('statMonthMembers').innerText = monthMembers + '人';
+      document.getElementById('statMonthCoins').innerText = monthCoinsIssued.toLocaleString() + '幣';
+      document.getElementById('statMonthSpent').innerText = '$' + monthSpent.toLocaleString();
+      document.getElementById('statMonthBirthday').innerText = monthBirthdayCount + '人';
+      
+      // 💡 計算會員距離上次消費天數分佈（略過空值）
+      let nowTime = new Date().getTime();
+      let u15 = 0, u30 = 0, u60 = 0, u90 = 0, over90 = 0;
+      members.forEach(m => {
+        if (!m.last_spent_at) {
+          return; // 若 last_spent_at 為空值，不計入沈睡週期
+        }
+        let lastTime = new Date(m.last_spent_at).getTime();
+        let diffDays = Math.floor((nowTime - lastTime) / (1000 * 60 * 60 * 24));
+        if (diffDays <= 15) u15++;
+        else if (diffDays <= 30) u30++;
+        else if (diffDays <= 60) u60++;
+        else if (diffDays <= 90) u90++;
+        else over90++;
+      });
+      document.getElementById('sleepU15').innerText = u15 + '人';
+      document.getElementById('sleepU30').innerText = u30 + '人';
+      document.getElementById('sleepU60').innerText = u60 + '人';
+      document.getElementById('sleepU90').innerText = u90 + '人';
+      document.getElementById('sleepOver90').innerText = over90 + '人';
+      
+      let redeemCounts = {}, addonCounts = {};
+      coupons.forEach(c => {
+        let name = c.title || c.product_name || c.coupon_code || '未知商品';
+        let isAddon = (Number(c.add_amount) || 0) > 0 || String(c.category || '').includes('加購');
+        if (isAddon) {
+          addonCounts[name] = (addonCounts[name] || 0) + 1;
+        } else {
+          redeemCounts[name] = (redeemCounts[name] || 0) + 1;
+        }
+      });
+      let topRedeem = Object.entries(redeemCounts).sort((a,b) => b[1] - a[1]).slice(0, 3);
+      let topAddon = Object.entries(addonCounts).sort((a,b) => b[1] - a[1]).slice(0, 3);
+      let redeemHtml = '';
+      topRedeem.forEach(([name, count], idx) => {
+        redeemHtml += `<li class="list-group-item d-flex justify-content-between align-items-center py-1"><span>${idx+1}. ${name}</span><span class="badge bg-danger">${count} 次</span></li>`;
+      });
+      document.getElementById('topRedeemList').innerHTML = redeemHtml || '<li class="list-group-item text-center text-muted py-1">無兌換紀錄</li>';
+      let addonHtml = '';
+      topAddon.forEach(([name, count], idx) => {
+        addonHtml += `<li class="list-group-item d-flex justify-content-between align-items-center py-1"><span>${idx+1}. ${name}</span><span class="badge bg-warning text-dark">${count} 次</span></li>`;
+      });
+      document.getElementById('topAddonList').innerHTML = addonHtml || '<li class="list-group-item text-center text-muted py-1">無加購紀錄</li>';
+      
+      let memberSpentMap = {};
+      monthLogs.filter(l => ['消費', '扣除'].includes(l.type) && l.member_id).forEach(l => {
+        let mId = l.member_id;
+        let amt = Number(l.spent_amount) || Number(l.amount) || 0;
+        memberSpentMap[mId] = (memberSpentMap[mId] || 0) + amt;
+      });
+      let topMembers = Object.entries(memberSpentMap).sort((a, b) => b[1] - a[1]).slice(0, 3);
+      let memberSpentHtml = '';
+      topMembers.forEach(([mId, amt], idx) => {
+        memberSpentHtml += `<li class="list-group-item d-flex justify-content-between align-items-center py-1"><span>${idx+1}. ID: ${mId}</span><span class="badge bg-success">$${amt.toLocaleString()}</span></li>`;
+      });
+      document.getElementById('topMemberSpentList').innerHTML = memberSpentHtml || '<li class="list-group-item text-center text-muted py-1">尚無消費紀錄</li>';
+      
+      let daysInMonth = new Date(yearStr, monthStr, 0).getDate();
+      let weekdayCounts = {1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0};
+      for (let d = 1; d <= daysInMonth; d++) {
+        let jsDay = new Date(yearStr, Number(monthStr)-1, d).getDay();
+        let isoDay = jsDay === 0 ? 7 : jsDay;
+        weekdayCounts[isoDay]++;
+      }
+      let weekdaySum = {1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0};
+      monthLogs.filter(l => ['消費', '扣除'].includes(l.type)).forEach(l => {
+        let w = Number(l.spent_weekday) || new Date(l.created_at).getDay() || 7;
+        if (w === 0) w = 7;
+        let amt = Number(l.spent_amount) || Number(l.amount) || 0;
+        if (weekdaySum[w] !== undefined) weekdaySum[w] += amt;
+      });
+      for (let i = 1; i <= 7; i++) {
+        let avg = weekdayCounts[i] > 0 ? Math.round(weekdaySum[i] / weekdayCounts[i]) : 0;
+        let el = document.getElementById('avgW' + i);
+        if (el) el.innerText = '$' + avg.toLocaleString();
+      }
+      
+      let hourlyGender = {};
+      let hourlyAge = {};
+      for (let h = 0; h < 24; h++) {
+        hourlyGender[h] = { male: 0, female: 0, total: 0, maleCount: 0, femaleCount: 0, totalCount: 0 };
+        hourlyAge[h] = { under20: 0, b21_30: 0, b31_40: 0, b41_50: 0, over51: 0, counts: {u20:0, b21:0, b31:0, b41:0, o51:0} };
+      }
+      let currentYear = new Date().getFullYear();
+      monthLogs.filter(l => ['消費', '扣除'].includes(l.type)).forEach(l => {
+        let h = Number(l.spent_hour);
+        if (isNaN(h)) {
+          h = l.created_at ? new Date(l.created_at).getHours() : 0;
+        }
+        let amt = Number(l.spent_amount) || Number(l.amount) || 0;
+        let member = memberMap[l.member_id] || {};
+        let gender = member.gender;
+        let birthdate = member.birthdate;
+        if (hourlyGender[h]) {
+          hourlyGender[h].total += amt;
+          hourlyGender[h].totalCount++;
+          if (gender === '男') {
+            hourlyGender[h].male += amt;
+            hourlyGender[h].maleCount++;
+          } else if (gender === '女') {
+            hourlyGender[h].female += amt;
+            hourlyGender[h].femaleCount++;
+          }
+        }
+        if (birthdate && hourlyAge[h]) {
+          let bYear = new Date(birthdate).getFullYear();
+          let age = currentYear - bYear;
+          if (!isNaN(age)) {
+            if (age <= 20) { hourlyAge[h].under20 += amt; hourlyAge[h].counts.u20++; }
+            else if (age <= 30) { hourlyAge[h].b21_30 += amt; hourlyAge[h].counts.b21++; }
+            else if (age <= 40) { hourlyAge[h].b31_40 += amt; hourlyAge[h].counts.b31++; }
+            else if (age <= 50) { hourlyAge[h].b41_50 += amt; hourlyAge[h].counts.b41++; }
+            else { hourlyAge[h].over51 += amt; hourlyAge[h].counts.o51++; }
+          }
+        }
+      });
+      let genderRows = '', ageRows = '';
+      for (let h = 0; h < 24; h++) {
+        let hStr = String(h).padStart(2, '0') + ':00';
+        let g = hourlyGender[h];
+        let a = hourlyAge[h];
+        let mAvg = g.maleCount > 0 ? Math.round(g.male / g.maleCount) : 0;
+        let fAvg = g.femaleCount > 0 ? Math.round(g.female / g.femaleCount) : 0;
+        let tAvg = g.totalCount > 0 ? Math.round(g.total / g.totalCount) : 0;
+        let u20Avg = a.counts.u20 > 0 ? Math.round(a.under20 / a.counts.u20) : 0;
+        let b21Avg = a.counts.b21 > 0 ? Math.round(a.b21_30 / a.counts.b21) : 0;
+        let b31Avg = a.counts.b31 > 0 ? Math.round(a.b31_40 / a.counts.b31) : 0;
+        let b41Avg = a.counts.b41 > 0 ? Math.round(a.b41_50 / a.counts.b41) : 0;
+        let o51Avg = a.counts.o51 > 0 ? Math.round(a.over51 / a.counts.o51) : 0;
+        genderRows += `<tr><td class="fw-bold py-1">${hStr}</td><td class="py-1">$${mAvg.toLocaleString()}</td><td class="py-1">$${fAvg.toLocaleString()}</td><td class="text-success fw-bold py-1">$${tAvg.toLocaleString()}</td></tr>`;
+        ageRows += `<tr><td class="fw-bold py-1">${hStr}</td><td class="py-1">$${u20Avg.toLocaleString()}</td><td class="py-1">$${b21Avg.toLocaleString()}</td><td class="py-1">$${b31Avg.toLocaleString()}</td><td class="py-1">$${b41Avg.toLocaleString()}</td><td class="py-1">$${o51Avg.toLocaleString()}</td></tr>`;
+      }
+      document.getElementById('hourlyGenderTbody').innerHTML = genderRows;
+      document.getElementById('hourlyAgeTbody').innerHTML = ageRows;
+    } catch (err) {
+      console.error('分析數據載入失敗:', err);
+      alert('載入分析數據發生異常');
+    }
+  }
+  
+  function switchLotterySubTab(name, btn) {
+    document.querySelectorAll('#pageAdminLottery .sub-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('#lotterySubNav button').forEach(b => b.classList.remove('active'));
+    document.getElementById('subLottery' + name).classList.add('active');
+    btn.classList.add('active');
+  }
+  
+  function switchAuctionSubTab(name, btn) {
+    document.querySelectorAll('#pageAdminAuction .sub-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('#auctionSubNav button').forEach(b => b.classList.remove('active'));
+    document.getElementById('subAuction' + name).classList.add('active');
+    btn.classList.add('active');
+  }
+  
+  async function posNav(name, btn) {
+    if (['AdminLottery', 'AdminAuction', 'AdminPanel'].includes(name)) {
+      if (!isHighAuthUnlocked()) {
+        let pwd = prompt('此分頁需要【高級管理員密碼】才能進入：');
+        if (!pwd) return;
+        let res = await callApi('/api/system_settings');
+        if (!res.success || !res.system_settings) return alert('無法驗證密碼！');
+        let targetSetting = res.system_settings.find(s => s.setting_key === '高級管理員登入密碼');
+        let correctPwd = targetSetting ? targetSetting.value || targetSetting.setting_value : '1234';
+        if (pwd.trim() === String(correctPwd).trim()) {
+          localStorage.setItem('raibu_high_auth', 'true');
+          updateAuthUI();
+        } else {
+          alert('密碼錯誤，無法進入！');
+          return;
+        }
+      }
+    }
+    
+    document.querySelectorAll('.page-section').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.pos-nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('page' + name).classList.add('active'); 
+    btn.classList.add('active');
+    
+    if (name === 'AdminLottery') { loadLotteryManagementData(); }
+    if (name === 'AdminAuction') { loadAuctionManagementData(); }
+    if (name === 'AdminPanel') { loadAllAdminCaches(); }
+    if (name === 'Analytics') { loadFullAnalyticsData(); }
+  }
+  
+  function toggleEditNotes() {
+    if (!currentMemberId) return;
+    let viewMode = document.getElementById('notesViewMode');
+    let editMode = document.getElementById('notesEditMode');
+    let btn = document.getElementById('btnEditNotes');
+    if (editMode.style.display === 'none') {
+      editMode.style.display = 'block';
+      viewMode.style.display = 'none';
+      btn.innerText = '收起';
+    } else {
+      editMode.style.display = 'none';
+      viewMode.style.display = 'block';
+      btn.innerText = '編輯';
+    }
+  }
+  
+  async function saveMemberNotes() {
+    if (!currentMemberId) return alert('尚未選擇會員！');
+    let newNotes = document.getElementById('notesInput').value.trim();
+    let res = await callApi('/api/pos/update-notes', 'POST', {
+      memberId: currentMemberId,
+      notes: newNotes
+    });
+    alert(res.message);
+    if (res.success) {
+      document.getElementById('notesViewMode').innerText = newNotes ? newNotes : '無';
+      toggleEditNotes();
+    }
+  }
+</script>
+</body>
+</html>
