@@ -1949,18 +1949,36 @@
     });
   }
   
-  function posNav(sectionName, btn) {
-    document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
-    document.querySelectorAll('.pos-nav-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('page' + sectionName).classList.add('active');
-    btn.classList.add('active');
-    if (sectionName === 'AdminLottery') loadLotteryManagementData();
-    if (sectionName === 'AdminAuction') loadAuctionManagementData();
-    if (sectionName === 'Analytics') {
-      let monthInput = document.getElementById('analyticsMonthInput');
-      if (monthInput && monthInput.value) loadFullAnalyticsData();
-    }
+function posNav(sectionName, btn) {
+  // 🔒 需要高管權限的分頁清單
+  const highAuthSections = ['AdminLottery', 'AdminAuction', 'AdminPanel'];
+
+  // 如果是高管分頁，且未解鎖權限
+  if (highAuthSections.includes(sectionName) && !isHighAuthUnlocked()) {
+    // 改用最直接的原生 alert，絕對不會被 UI 覆蓋或干擾畫面
+    alert('🔒 此為高級管理員專屬功能，請先點擊上方「🔓 解鎖高級管理員」！');
+    return; // 🛑 徹底阻擋，不往下執行任何切換動作
   }
+
+  // 正常切換分頁
+  document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.pos-nav-btn').forEach(b => b.classList.remove('active'));
+  
+  let targetSection = document.getElementById('page' + sectionName);
+  if (targetSection) {
+    targetSection.classList.add('active');
+  }
+  if (btn) {
+    btn.classList.add('active');
+  }
+  
+  if (sectionName === 'AdminLottery') loadLotteryManagementData();
+  if (sectionName === 'AdminAuction') loadAuctionManagementData();
+  if (sectionName === 'Analytics') {
+    let monthInput = document.getElementById('analyticsMonthInput');
+    if (monthInput && monthInput.value) loadFullAnalyticsData();
+  }
+}
   
   function toggleEditNotes() {
     let viewMode = document.getElementById('notesViewMode');

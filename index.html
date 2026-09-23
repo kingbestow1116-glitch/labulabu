@@ -181,7 +181,7 @@
 <body style="background-color: #032E5B;" id="bodyTag">
 <!-- 頂部導覽列 (登入後顯示) -->
 <div id="topNavbarContainer" class="top-header-bar py-2 px-3 d-flex justify-content-between align-items-center" style="display: none !important;">
-  <span class="fw-bold fs-5" style="color: #032E5B;">🍜 拉咘拉佈會員</span>
+  <span class="fw-bold fs-5" style="color: #032E5B;">🍜 拉咘拉咘會員</span>
   <div>
     <span id="userInfoHeader" class="badge bg-light text-dark px-2 py-1 border">未登入</span>
     <button id="btnLogout" class="btn btn-outline-danger btn-sm ms-2 py-0" style="display: none;" onclick="logout()">登出</button>
@@ -1029,7 +1029,7 @@
   }
 
   async function register() {
-    if (!document.getElementById('chkTerms').checked) return showModalAlert('請先同意防範漏洞條款！', '條款未勾選', 'q3');
+    if (!document.getElementById('chkTerms').checked) return showModalAlert('請先同意服務條款與使用規則！', '條款未勾選', 'q3');
     let data = { name: document.getElementById('regName').value.trim(), phone: document.getElementById('regPhone').value.trim(), password: document.getElementById('regPwd').value, gender: document.getElementById('regGender').value, birthdate: document.getElementById('regBirthday').value };
     if (!data.name || !data.phone || !data.password) return showModalAlert('請完整填寫註冊資料', '欄位空白', 'q3');
     
