@@ -90,7 +90,7 @@
     <h3 class="text-info mt-3">🎬 開獎動畫播放中，全場請保持安靜...</h3>
   </div>
 
-  <!-- 階段三：3 秒倒數區域 -->
+  <!-- 階段三：3 秒倒數區域 (影片隱藏後此區會直接在畫面正中央顯示) -->
   <div id="liveStep3" style="display:none;" class="mt-5 pt-5">
     <div id="liveCountdownDisplay" class="display-1 fw-black text-warning mb-4" style="font-size: 7rem;">3</div>
     <p class="h3 text-light tracking-wider">系統正在隨機抽選得獎者，倒數中...</p>
@@ -954,7 +954,7 @@
     }
   }
 
-  // 影片結束或點擊略過：隱藏影片、顯示倒數，並將畫面歸位
+  // 影片結束或點擊略過：將 liveStep2 設為 display:none 徹底隱藏影片，切換至倒數畫面
   function handleVideoEndedOrSkipped() {
     let videoEl = document.getElementById('liveVideoPlayer');
     if (videoEl) {
