@@ -44,6 +44,13 @@
     .custom-alert-btn-group { display: flex; gap: 10px; justify-content: center; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     @keyframes scaleUp { from { transform: scale(0.9); } to { transform: scale(1); } }
+
+    /* 🎬 大螢幕現場開獎互動 Modal 樣式優化 */
+    #liveDrawScreenOverlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: #111; z-index: 99999; color: white; padding: 20px; text-align: center;
+      overflow-y: auto; flex-direction: column; justify-content: center; align-items: center;
+    }
   </style>
 </head>
 <body>
@@ -57,38 +64,39 @@
   </div>
 </div>
 
-<!-- 🎬 整合後的大螢幕現場開獎互動 Modal (全螢幕覆蓋 + 狀態鎖定 + 影片防卡死備用略過按鈕 + 3秒倒數 + 遮罩得獎名單) -->
+<!-- 🎬 完美整合版大螢幕現場開獎互動 Modal -->
 <div id="liveDrawScreenOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#111; z-index:99999; color:white; padding:20px; text-align:center; overflow-y:auto;">
   <button class="btn btn-outline-light btn-sm position-absolute top-0 end-0 m-3" onclick="closeLiveDrawScreenModal()">✖ 關閉畫面</button>
   
-  <!-- 階段一：初始狀態，顯示活動資訊與啟動按鈕 -->
+  <!-- 階段一：初始狀態 -->
   <div id="liveStep1" class="mt-5 pt-5">
     <h1 class="display-3 fw-bold text-warning mb-4">🎉 拉咘幣現場實況開獎大會</h1>
     <p class="lead text-light mb-5">請確認進行中的活動並點擊下方按鈕，將鎖定活動並播放開獎動畫短片！</p>
     <button class="btn btn-danger btn-lg px-5 py-3 fw-bold fs-2 shadow" onclick="handleStartFullscreenDraw()">▶ 播放開獎動畫並揭曉</button>
   </div>
 
-  <!-- 階段二：影片播放區域 (內含備用略過按鈕，避免影片故障卡死) -->
-  <div id="liveStep2" style="display:none;" class="h-100 d-flex flex-column justify-content-center align-items-center position-relative">
-    <div class="position-relative w-100 d-flex justify-content-center align-items-center">
-      <video id="liveVideoPlayer" style="width: 80vw; height: 60vh; max-width: 900px; object-fit: contain; background: black;" controls autoplay>
+  <!-- 階段二：影片播放區域 (含影片下方專屬略過按鈕) -->
+  <div id="liveStep2" style="display:none;" class="h-100 d-flex flex-column justify-content-center align-items-center">
+    <div class="w-100 d-flex flex-column align-items-center justify-content-center">
+      <video id="liveVideoPlayer" style="width: 80vw; height: 55vh; max-width: 900px; object-fit: contain; background: black;" controls autoplay>
         您的瀏覽器不支援 HTML5 影片播放
       </video>
-      <!-- 解決問題一：新增備用略過按鈕，避免影片故障卡死 -->
-      <button onclick="handleVideoEndedOrSkipped()" class="position-absolute bottom-0 end-0 m-4 btn btn-secondary btn-sm bg-slate-700/80 text-white shadow">
-        ⏭️ 略過動畫 (備用)
-      </button>
+      <div class="mt-3">
+        <button onclick="handleVideoEndedOrSkipped()" class="btn btn-secondary btn-sm px-4 py-2 text-white fw-bold shadow">
+          ⏭️ 略過動畫 (備用按鈕)
+        </button>
+      </div>
     </div>
-    <h3 class="text-info mt-4 animate-pulse">🎬 開獎動畫播放中，全場請保持安靜...</h3>
+    <h3 class="text-info mt-3">🎬 開獎動畫播放中，全場請保持安靜...</h3>
   </div>
 
-  <!-- 階段三：3 秒倒數區域 (確保 DOM 渲染後啟動) -->
+  <!-- 階段三：3 秒倒數區域 -->
   <div id="liveStep3" style="display:none;" class="mt-5 pt-5">
-    <div id="liveCountdownDisplay" class="display-1 fw-black text-amber-400 text-warning mb-4" style="font-size: 7rem;">3</div>
+    <div id="liveCountdownDisplay" class="display-1 fw-black text-warning mb-4" style="font-size: 7rem;">3</div>
     <p class="h3 text-light tracking-wider">系統正在隨機抽選得獎者，倒數中...</p>
   </div>
 
-  <!-- 階段四：結果揭曉區域 (顯示序號、姓氏與電話遮罩) -->
+  <!-- 階段四：結果揭曉區域 -->
   <div id="liveStep4" style="display:none;" class="mt-4 pt-3 max-w-xl mx-auto">
     <h1 class="display-4 fw-bold text-success mb-4">🏆 🎉 中獎名單揭曉</h1>
     <div id="liveWinnerListContainer" class="row justify-content-center g-3 mt-2"></div>
@@ -156,7 +164,6 @@
       <!-- 會員面板 -->
       <div id="memberPanel" style="display: none;">
         <div class="row g-2">
-          
           <!-- 小卡 1：會員資料 -->
           <div class="col-lg-2 col-md-6 col-12">
             <div class="card shadow-sm compact-card h-100">
@@ -232,6 +239,7 @@
               </div>
             </div>
           </div>
+
           <!-- 小卡 4：點數異動與消費錄入 -->
           <div class="col-lg-4 col-md-6 col-12">
             <div class="card shadow-sm compact-card h-100 pos-action-card border-primary">
@@ -902,14 +910,15 @@
     if (!currentLiveEventId) {
       return showCustomAlert('請先在上方下拉選單選擇一個進行中的抽獎活動！', 'info');
     }
-    // 鎖定當下活動ID，避免中途被其他操作影響 (解決問題二)
     lockedEventId = currentLiveEventId;
     
-    document.getElementById('liveDrawScreenOverlay').style.display = 'block';
+    let overlay = document.getElementById('liveDrawScreenOverlay');
+    overlay.style.display = 'flex';
     document.getElementById('liveStep1').style.display = 'block';
     document.getElementById('liveStep2').style.display = 'none';
     document.getElementById('liveStep3').style.display = 'none';
     document.getElementById('liveStep4').style.display = 'none';
+    window.scrollTo(0, 0);
   }
   
   function closeLiveDrawScreenModal() {
@@ -921,10 +930,10 @@
     }
   }
 
-  // 1. 點擊啟動大螢幕開獎互動
   async function handleStartFullscreenDraw() {
     document.getElementById('liveStep1').style.display = 'none';
-    document.getElementById('liveStep2').style.display = 'flex';
+    document.getElementById('liveStep2').style.display = 'block';
+    window.scrollTo(0, 0);
     
     let videoUrl = await getLiveVideoUrlFromSettings();
     let videoElement = document.getElementById('liveVideoPlayer');
@@ -945,25 +954,25 @@
     }
   }
 
-  // 2. 影片播放結束（或點擊備用略過按鈕）時觸發
+  // 影片結束或點擊略過：隱藏影片、顯示倒數，並將畫面歸位
   function handleVideoEndedOrSkipped() {
     let videoEl = document.getElementById('liveVideoPlayer');
     if (videoEl) {
       videoEl.pause();
+      videoEl.currentTime = 0;
     }
     document.getElementById('liveStep2').style.display = 'none';
     document.getElementById('liveStep3').style.display = 'block';
+    window.scrollTo(0, 0);
     
     let countdownDisplay = document.getElementById('liveCountdownDisplay');
     countdownDisplay.innerText = "3";
 
-    // 確保 DOM 渲染完成後才啟動倒數與 API 呼叫 (解決問題三)
     setTimeout(() => {
       startCountdownAndFetchAPI(lockedEventId);
     }, 100);
   }
 
-  // 3. 倒數 3 秒並觸發原始 API
   function startCountdownAndFetchAPI(eventId) {
     let currentCount = 3;
     let countdownDisplay = document.getElementById('liveCountdownDisplay');
@@ -973,16 +982,15 @@
         countdownDisplay.innerText = currentCount;
       } else {
         clearInterval(timer);
-        // 倒數結束，觸發原本的開獎 API
         executeDrawAPI(eventId);
       }
     }, 1000);
   }
 
-  // 4. 執行 API 並處理得獎名單與遮罩顯示
   async function executeDrawAPI(eventId) {
     document.getElementById('liveStep3').style.display = 'none';
     document.getElementById('liveStep4').style.display = 'block';
+    window.scrollTo(0, 0);
     
     let listContainer = document.getElementById('liveWinnerListContainer');
     listContainer.innerHTML = `<h4 class="text-warning">🎲 系統正在隨機抽獎並自動派發兌換券中...</h4>`;
@@ -990,18 +998,44 @@
     let res = await callApi('/api/admin/lottery/draw', 'POST', { eventId: eventId });
     listContainer.innerHTML = '';
     
+    // 💡 個資遮罩嚴格規範：
+    // 1. 姓名：只顯示第一個字，後面用 ** 代替 (例如: "王小明" -> "王**")
+    function maskDrawName(name) {
+      if (!name || name === '未填寫' || name === '未知') return '未填寫';
+      return name.charAt(0) + '**';
+    }
+    // 2. 電話：第 5~7 碼用 * 代替 (例如: "0912345678" -> "0912***678")
+    function maskDrawPhone(phone) {
+      if (!phone || phone.length < 8) return '0912***567';
+      return phone.substring(0, 4) + '***' + phone.substring(7);
+    }
+
+    let winnersList = [];
     if (res.success && res.winners && res.winners.length > 0) {
-      res.winners.forEach(w => {
-        let displayName = maskName(w.name);
-        let displayPhone = maskPhone(w.phone);
-        let serial = w.serial || 'A001';
+      winnersList = res.winners;
+    } else {
+      let statsRes = await callApi('/api/admin/lottery-stats');
+      if (statsRes.success && statsRes.stats && statsRes.stats[eventId]) {
+        let evData = statsRes.stats[eventId];
+        winnersList = (evData.detailedRecords || []).filter(r => r.winStatus === '中獎');
+      }
+    }
+
+    if (winnersList.length > 0) {
+      winnersList.forEach((w, idx) => {
+        let rawName = w.name || w.memberName || '會員';
+        let rawPhone = w.phone || w.memberPhone || '0912345678';
+        let serial = w.serial || w.recordId || `A00${idx + 1}`;
+
+        let displayName = maskDrawName(rawName);
+        let displayPhone = maskDrawPhone(rawPhone);
         
         listContainer.innerHTML += `
-          <div class="col-md-4 col-12">
-            <div class="card bg-dark text-white border-warning p-3 shadow-lg">
-              <span class="text-slate-400 font-mono small">序號: ${serial}</span>
-              <h3 class="text-warning fw-bold mb-1">🎁 ${displayName}＊</h3>
-              <p class="text-amber-300 font-mono mb-2" style="font-size: 1rem;">${displayPhone}</p>
+          <div class="col-md-4 col-12 mb-3">
+            <div class="card bg-dark text-white border-warning p-3 shadow-lg rounded-4">
+              <span class="text-secondary font-monospace small">序號: ${serial}</span>
+              <h3 class="text-warning fw-bold my-2">🎁 ${displayName}</h3>
+              <p class="text-amber-300 font-mono mb-2 fs-5">${displayPhone}</p>
               <span class="badge bg-success py-2" style="font-size: 0.85rem;">✅ 已自動派發兌換券</span>
             </div>
           </div>
@@ -1009,31 +1043,7 @@
       });
       loadLotteryManagementData();
     } else {
-      // 若 API 未直接回傳 winners 陣列，則直接從後台重新載入該活動的詳細得獎紀錄來渲染
-      let statsRes = await callApi('/api/admin/lottery-stats');
-      if (statsRes.success && statsRes.stats && statsRes.stats[eventId]) {
-        let evData = statsRes.stats[eventId];
-        let winners = (evData.detailedRecords || []).filter(r => r.winStatus === '中獎');
-        if (winners.length > 0) {
-          winners.forEach(w => {
-            let displayName = maskName(w.name);
-            let displayPhone = maskPhone(w.phone);
-            listContainer.innerHTML += `
-              <div class="col-md-4 col-12">
-                <div class="card bg-dark text-white border-warning p-3 shadow-lg">
-                  <h3 class="text-warning fw-bold mb-1">🎁 ${displayName}</h3>
-                  <p class="text-amber-300 font-mono mb-2" style="font-size: 1rem;">電話：${displayPhone}</p>
-                  <span class="badge bg-success py-2" style="font-size: 0.85rem;">✅ 已自動派發兌換券</span>
-                </div>
-              </div>
-            `;
-          });
-        } else {
-          listContainer.innerHTML = `<h4 class="text-danger">${res.message || '本場次無人參與或已經開獎完畢！'}</h4>`;
-        }
-      } else {
-        listContainer.innerHTML = `<h4 class="text-danger">開獎完成！</h4>`;
-      }
+      listContainer.innerHTML = `<h4 class="text-danger">${res.message || '本場次無人參與或已經開獎完畢！'}</h4>`;
       loadLotteryManagementData();
     }
   }
@@ -1041,9 +1051,9 @@
   function resetLiveDrawScreen() {
     document.getElementById('liveStep4').style.display = 'none';
     document.getElementById('liveStep1').style.display = 'block';
+    window.scrollTo(0, 0);
   }
 
-  // 💡 智慧轉換 Google Drive 網址或取得直接串流網址
   function convertDriveUrl(url) {
     if (!url) return '';
     let cleanUrl = url.trim();
@@ -1161,7 +1171,7 @@
   function maskPhone(phone) {
     if (!phone) return '---';
     if (isHighAuthUnlocked()) return phone;
-    if (phone.length >= 7) return phone.substring(0, 4) + '***' + phone.substring(phone.length - 3);
+    if (phone.length >= 8) return phone.substring(0, 4) + '***' + phone.substring(7);
     return '***';
   }
   function isHighAuthUnlocked() { return localStorage.getItem('raibu_high_auth') === 'true'; }
@@ -1800,7 +1810,6 @@
     if (sRes.success && sRes.system_settings) {
       let sel = document.getElementById('adminSettingSelect'); 
       sel.innerHTML = '<option value="">-- 請選擇參數 --</option>';
-      
       sRes.system_settings.forEach(s => { 
         settingsCache[s.setting_key] = s; 
         let isHidden = (String(s.notes || '').trim() === '隱藏');
