@@ -956,21 +956,29 @@
 
   // 影片結束或點擊略過：將 liveStep2 設為 display:none 徹底隱藏影片，切換至倒數畫面
   function handleVideoEndedOrSkipped() {
-    let videoEl = document.getElementById('liveVideoPlayer');
-    if (videoEl) {
-      videoEl.pause();
-      videoEl.currentTime = 0;
-    }
-    document.getElementById('liveStep2').style.display = 'none';
-    document.getElementById('liveStep3').style.display = 'block';
-    window.scrollTo(0, 0);
-    
-    let countdownDisplay = document.getElementById('liveCountdownDisplay');
-    countdownDisplay.innerText = "3";
+   let videoEl = document.getElementById('liveVideoPlayer');
+  if (videoEl) {
+    videoEl.pause();
+    videoEl.currentTime = 0;
+    videoEl.src = ""; // 清空來源避免背景繼續下載或佔用
+  }
 
-    setTimeout(() => {
-      startCountdownAndFetchAPI(lockedEventId);
-    }, 100);
+  let step2 = document.getElementById('liveStep2');
+  // 使用 style.setProperty 加上 important 確保絕對生效
+  step2.style.setProperty('display', 'none', 'important');
+
+  // 顯示第三步倒數
+  let step3 = document.getElementById('liveStep3');
+  step3.style.setProperty('display', 'block', 'important');
+  
+  window.scrollTo(0, 0);
+  
+  let countdownDisplay = document.getElementById('liveCountdownDisplay');
+  countdownDisplay.innerText = "3";
+
+  setTimeout(() => {
+    startCountdownAndFetchAPI(lockedEventId);
+  }, 100);
   }
 
   function startCountdownAndFetchAPI(eventId) {
